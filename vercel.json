@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/groq/:path*",
+      "destination": "https://api.groq.com/:path*"
+    },
+    {
+      "source": "/api/gmaps/:path*",
+      "destination": "https://maps.googleapis.com/:path*"
+    }
+  ]
+}
