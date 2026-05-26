@@ -49,8 +49,9 @@ function parseCSVText(text) {
   return orders
 }
 
-export default function CsvUpload({ onOrdersLoaded, hasOrders }) {
+export default function CsvUpload({ onOrdersLoaded, hasOrders, orderCount = 0 }) {
   const [dragging, setDragging] = useState(false)
+  const [expanded, setExpanded] = useState(true)
 
   const handleDragOver = e => { e.preventDefault(); setDragging(true) }
   const handleDragLeave = () => setDragging(false)
@@ -78,49 +79,62 @@ export default function CsvUpload({ onOrdersLoaded, hasOrders }) {
 
   const loadDemoCentro = () => {
     const orders = parseCSVText(DEMO_CSV)
-    if (orders.length) onOrdersLoaded(orders)
+    if (orders.length) { onOrdersLoaded(orders); setExpanded(false) }
   }
 
   const loadDemoNorte = () => {
     const orders = parseCSVText(DEMO_CSV_NORTE)
-    if (orders.length) onOrdersLoaded(orders)
+    if (orders.length) { onOrdersLoaded(orders); setExpanded(false) }
   }
 
   return (
     <div className="panel-section">
-      <div className="section-label">
+      <div
+        className="section-label"
+        style={{ cursor: hasOrders ? 'pointer' : 'default', marginBottom: expanded ? undefined : 0 }}
+        onClick={() => hasOrders && setExpanded(v => !v)}
+      >
         <div className={`step-dot${hasOrders ? ' done' : ''}`}>
           {hasOrders ? <Check size={11} strokeWidth={2.5} /> : '1'}
         </div>
         Órdenes de trabajo
+        {hasOrders && (
+          <span style={{ marginLeft: 'auto', fontSize: '9px', color: 'var(--muted)', letterSpacing: '1px' }}>
+            {expanded ? 'OCULTAR' : `${orderCount} CLIENTES · CAMBIAR`}
+          </span>
+        )}
       </div>
 
-      <div
-        className={`drop-zone${dragging ? ' dragging' : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <input type="file" accept=".csv" onChange={handleFileInput} />
-        <Upload size={18} strokeWidth={1.5} style={{ margin: '0 auto 6px', display: 'block', color: 'var(--muted)' }} />
-        <div className="drop-title">Arrastra tu CSV</div>
-        <div className="drop-sub">o haz clic para seleccionar</div>
-        <div className="drop-fmt">
-          cliente, direccion, duracion_min<br />
-          ventana_tipo, ventana_inicio, ventana_fin
-        </div>
-      </div>
+      {(!hasOrders || expanded) && (
+        <>
+          <div
+            className={`drop-zone${dragging ? ' dragging' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <input type="file" accept=".csv" onChange={handleFileInput} />
+            <Upload size={18} strokeWidth={1.5} style={{ margin: '0 auto 6px', display: 'block', color: 'var(--muted)' }} />
+            <div className="drop-title">Arrastra tu CSV</div>
+            <div className="drop-sub">o haz clic para seleccionar</div>
+            <div className="drop-fmt">
+              cliente, direccion, duracion_min<br />
+              ventana_tipo, ventana_inicio, ventana_fin
+            </div>
+          </div>
 
-      <div className="demo-btn-row">
-        <button className="btn-demo" onClick={loadDemoCentro}>
-          <Zap size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />
-          Madrid Centro
-        </button>
-        <button className="btn-demo" onClick={loadDemoNorte}>
-          <Zap size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />
-          Madrid Norte
-        </button>
-      </div>
+          <div className="demo-btn-row">
+            <button className="btn-demo" onClick={loadDemoCentro}>
+              <Zap size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />
+              Madrid Centro
+            </button>
+            <button className="btn-demo" onClick={loadDemoNorte}>
+              <Zap size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />
+              Madrid Norte
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -344,7 +344,7 @@ export default function App() {
           </div>
 
           {/* ── CSV Upload ── */}
-          <CsvUpload onOrdersLoaded={handleOrders} hasOrders={orders.length > 0} />
+          <CsvUpload onOrdersLoaded={handleOrders} hasOrders={orders.length > 0} orderCount={orders.length} />
 
           {orders.length > 0 && (
             <>
