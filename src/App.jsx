@@ -284,7 +284,7 @@ export default function App() {
                     className="fuel-input"
                     value={consumption}
                     min="1" max="30" step="0.5"
-                    onChange={e => setConsumption(e.target.value)}
+                    onChange={e => { const n = parseFloat(e.target.value); setConsumption(isNaN(n) ? '' : n) }}
                     onBlur={e => saveNum('rt_consumption', e.target.value, setConsumption)}
                   />
                   <span className="fuel-unit">l/100km</span>
@@ -298,7 +298,7 @@ export default function App() {
                     className="fuel-input"
                     value={fuelPrice}
                     min="0.5" max="5" step="0.01"
-                    onChange={e => setFuelPrice(e.target.value)}
+                    onChange={e => { const n = parseFloat(e.target.value); setFuelPrice(isNaN(n) ? '' : n) }}
                     onBlur={e => saveNum('rt_fuel_price', e.target.value, setFuelPrice)}
                   />
                   <span className="fuel-unit">€/l</span>
