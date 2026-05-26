@@ -80,11 +80,11 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
                       <a
                         href={`tel:${phone.replace(/\s/g, '')}`}
                         className="call-phone-btn"
-                        title={`Llamar: ${phone}`}
+                        title={phone}
                         onClick={e => e.stopPropagation()}
                       >
-                        <PhoneCall size={11} strokeWidth={2} />
-                        {phone}
+                        <PhoneCall size={10} strokeWidth={2} />
+                        Llamar
                       </a>
                     )}
                   </div>
