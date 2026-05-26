@@ -585,7 +585,7 @@ header {
   width: 0;
   outline: none;
 }
-.fuel-input:focus { border-color: var(--text); }
+.fuel-input-wrap:focus-within { border-color: var(--text); }
 .fuel-unit {
   font-size: 9px;
   color: var(--muted);

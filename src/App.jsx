@@ -20,8 +20,8 @@ export default function App() {
 
   const [groqKey,   setGroqKey]   = useState(() => localStorage.getItem('rt_groqkey')   || import.meta.env.VITE_GROQ_KEY   || '')
   const [googleKey, setGoogleKey] = useState(() => localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || '')
-  const [consumption, setConsumption] = useState(() => parseFloat(localStorage.getItem('rt_consumption')) || 9)
-  const [fuelPrice,   setFuelPrice]   = useState(() => parseFloat(localStorage.getItem('rt_fuel_price'))  || 1.65)
+  const [consumption, setConsumption] = useState(() => { const v = parseFloat(localStorage.getItem('rt_consumption')); return isNaN(v) ? 9 : v })
+  const [fuelPrice,   setFuelPrice]   = useState(() => { const v = parseFloat(localStorage.getItem('rt_fuel_price'));  return isNaN(v) ? 1.65 : v })
 
   const [result,        setResult]        = useState(null)
   const [loading,       setLoading]       = useState(false)
@@ -270,7 +270,8 @@ export default function App() {
                     className="fuel-input"
                     value={consumption}
                     min="1" max="30" step="0.5"
-                    onChange={e => saveNum('rt_consumption', e.target.value, setConsumption)}
+                    onChange={e => setConsumption(e.target.value)}
+                    onBlur={e => saveNum('rt_consumption', e.target.value, setConsumption)}
                   />
                   <span className="fuel-unit">l/100km</span>
                 </div>
@@ -283,7 +284,8 @@ export default function App() {
                     className="fuel-input"
                     value={fuelPrice}
                     min="0.5" max="5" step="0.01"
-                    onChange={e => saveNum('rt_fuel_price', e.target.value, setFuelPrice)}
+                    onChange={e => setFuelPrice(e.target.value)}
+                    onBlur={e => saveNum('rt_fuel_price', e.target.value, setFuelPrice)}
                   />
                   <span className="fuel-unit">€/l</span>
                 </div>
