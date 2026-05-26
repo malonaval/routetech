@@ -550,3 +550,51 @@ header {
   flex: 1;
   margin-top: 0;
 }
+
+/* ─── FUEL CONFIG ────────────────────────────────────────────────────────── */
+.fuel-row {
+  display: flex;
+  gap: 12px;
+}
+.fuel-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fuel-label {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.fuel-input-wrap {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.fuel-input {
+  flex: 1;
+  border: none;
+  padding: 7px 8px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  width: 0;
+  outline: none;
+}
+.fuel-input:focus { border-color: var(--text); }
+.fuel-unit {
+  font-size: 9px;
+  color: var(--muted);
+  padding: 0 8px;
+  background: var(--surface2);
+  border-left: 1px solid var(--border);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}

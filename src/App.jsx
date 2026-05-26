@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { Key, AlertTriangle, Map, Circle, LocateFixed } from 'lucide-react'
+import { Key, AlertTriangle, Map, Circle, LocateFixed, Fuel } from 'lucide-react'
 import CsvUpload from './components/CsvUpload'
 import OrderList from './components/OrderList'
 import RouteMap from './components/RouteMap'
@@ -20,6 +20,8 @@ export default function App() {
 
   const [groqKey,   setGroqKey]   = useState(() => localStorage.getItem('rt_groqkey')   || import.meta.env.VITE_GROQ_KEY   || '')
   const [googleKey, setGoogleKey] = useState(() => localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || '')
+  const [consumption, setConsumption] = useState(() => parseFloat(localStorage.getItem('rt_consumption')) || 9)
+  const [fuelPrice,   setFuelPrice]   = useState(() => parseFloat(localStorage.getItem('rt_fuel_price'))  || 1.65)
 
   const [result,        setResult]        = useState(null)
   const [loading,       setLoading]       = useState(false)
@@ -33,6 +35,12 @@ export default function App() {
   const saveKey = (storageKey, value, setter) => {
     setter(value)
     localStorage.setItem(storageKey, value)
+  }
+
+  const saveNum = (storageKey, value, setter) => {
+    const n = parseFloat(value) || 0
+    setter(n)
+    localStorage.setItem(storageKey, n)
   }
 
   const handleOrders = useCallback(newOrders => {
@@ -247,6 +255,42 @@ export default function App() {
             )}
           </div>
 
+          {/* ── Vehículo / Combustible ── */}
+          <div className="panel-section">
+            <div className="section-label">
+              <Fuel size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--muted)' }} />
+              Vehículo
+            </div>
+            <div className="fuel-row">
+              <div className="fuel-field">
+                <label className="fuel-label">Consumo</label>
+                <div className="fuel-input-wrap">
+                  <input
+                    type="number"
+                    className="fuel-input"
+                    value={consumption}
+                    min="1" max="30" step="0.5"
+                    onChange={e => saveNum('rt_consumption', e.target.value, setConsumption)}
+                  />
+                  <span className="fuel-unit">l/100km</span>
+                </div>
+              </div>
+              <div className="fuel-field">
+                <label className="fuel-label">Precio</label>
+                <div className="fuel-input-wrap">
+                  <input
+                    type="number"
+                    className="fuel-input"
+                    value={fuelPrice}
+                    min="0.5" max="5" step="0.01"
+                    onChange={e => saveNum('rt_fuel_price', e.target.value, setFuelPrice)}
+                  />
+                  <span className="fuel-unit">€/l</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* ── CSV Upload ── */}
           <CsvUpload onOrdersLoaded={handleOrders} hasOrders={orders.length > 0} />
 
@@ -306,6 +350,8 @@ export default function App() {
           result={result}
           highlightedId={highlightedId}
           onHighlight={handleHighlight}
+          consumption={consumption}
+          fuelPrice={fuelPrice}
         />
       </div>
     </>
