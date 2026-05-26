@@ -42,6 +42,21 @@ Devuelve ÚNICAMENTE este JSON (sin texto adicional):
       "window": "10:00-11:00",
       "window_status": "en hora"
     }
+  ],
+  "savings_breakdown": {
+    "original_estimated_mins": 180,
+    "optimised_mins": 120,
+    "original_estimated_km": 67,
+    "optimised_km": 46
+  },
+  "call_suggestions": [
+    {
+      "ot_id": "OT-XXXX",
+      "cliente": "nombre",
+      "current_window": "09:00–10:00",
+      "potential_saving_minutes": 18,
+      "reason": "Liberando su ventana se ganaría 18 min agrupando con clientes del mismo barrio"
+    }
   ]
 }`
 
@@ -56,7 +71,7 @@ Devuelve ÚNICAMENTE este JSON (sin texto adicional):
       messages: [
         {
           role: 'system',
-          content: 'Eres un optimizador de rutas para técnicos de campo en Madrid. El campo "reasoning" debe ser específico: nombra qué clientes tienen ventana fija y por qué condicionan el orden, qué clientes flexibles se agruparon por zona geográfica, y cuánto tiempo se ahorra frente al orden original. Usa los nombres reales de los clientes y sus calles. Responde ÚNICAMENTE con JSON válido, sin texto ni markdown adicional.',
+          content: 'Eres un optimizador de rutas para técnicos de campo en Madrid. El campo "reasoning" debe ser específico: nombra qué clientes tienen ventana fija y por qué condicionan el orden, qué clientes flexibles se agruparon por zona geográfica, y cuánto tiempo se ahorra frente al orden original. Usa los nombres reales de los clientes y sus calles. El campo "call_suggestions" lista SOLO clientes con ventana_tipo "fija", ordenados por potential_saving_minutes descendente — calcula cuántos minutos se ganarían si ese cliente liberase su ventana. El campo "savings_breakdown" usa estimaciones realistas de Madrid. Responde ÚNICAMENTE con JSON válido, sin texto ni markdown adicional.',
         },
         { role: 'user', content: prompt },
       ],
