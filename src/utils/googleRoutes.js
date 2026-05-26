@@ -46,7 +46,7 @@ export async function getGoogleRoute(apiKey, originCoords, orderedStops) {
     language: 'es',
     region: 'es',
     mode: 'driving',
-    departure_time: 'now',         // activa datos de tráfico en tiempo real
+    departure_time: String(Math.floor(Date.now() / 1000)), // timestamp Unix — más fiable que 'now'
     traffic_model: 'best_guess',
   })
 
