@@ -74,20 +74,7 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
                 onClick={() => onFocusStop?.(s.ot_id)}
               >
                 <div className="call-info">
-                  <div className="call-client">
-                    {s.cliente}
-                    {phone && (
-                      <a
-                        href={`tel:${phone.replace(/\s/g, '')}`}
-                        className="call-phone-btn"
-                        title={phone}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <PhoneCall size={10} strokeWidth={2} />
-                        Llamar
-                      </a>
-                    )}
-                  </div>
+                  <div className="call-client">{s.cliente}</div>
                   <div className="call-window">
                     Ahora: {s.current_window}
                     {s.suggested_time && (
@@ -106,6 +93,17 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
                   <div className="call-reason">{s.reason}</div>
                 </div>
                 <div className="call-saving">
+                  {phone && (
+                    <a
+                      href={`tel:${phone.replace(/\s/g, '')}`}
+                      className="call-phone-btn"
+                      title={phone}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <PhoneCall size={10} strokeWidth={2} />
+                      Llamar
+                    </a>
+                  )}
                   <span className="call-saving-val">+{s.potential_saving_minutes} min</span>
                   <ChevronRight size={12} strokeWidth={1.5} style={{ color: 'var(--muted)' }} />
                 </div>

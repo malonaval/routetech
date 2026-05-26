@@ -803,8 +803,9 @@ header {
 
 .call-saving {
   display: flex;
-  align-items: center;
-  gap: 2px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   flex-shrink: 0;
 }
 
@@ -813,13 +814,6 @@ header {
   font-size: 15px;
   color: #16a34a;
   font-weight: 500;
-}
-
-.call-client {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .call-phone-btn {
