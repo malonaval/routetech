@@ -1,8 +1,8 @@
-import { Check, Navigation, Map, Cpu, X, Pencil } from 'lucide-react'
+import { Check, Navigation, Map, Cpu, X, Pencil, Trash2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 // stopCoords: [{ order, stop, coords, googleLeg }] — puede ser null si aún no se han geocodificado
-export default function OrderList({ orders, result, stopCoords = [], highlightedId, onFocusStop, pendingEdits = {}, onEditOrder }) {
+export default function OrderList({ orders, result, stopCoords = [], highlightedId, onFocusStop, pendingEdits = {}, onEditOrder, onDeleteOrder }) {
   const [editingId, setEditingId] = useState(null)
 
   useEffect(() => { setEditingId(null) }, [orders])
@@ -74,13 +74,22 @@ export default function OrderList({ orders, result, stopCoords = [], highlighted
             </div>
 
             <div className="ot-time">
-              <button
-                className="ot-edit-btn"
-                title="Editar ventana horaria"
-                onClick={e => { e.stopPropagation(); setEditingId(editingId === order.id ? null : order.id) }}
-              >
-                <Pencil size={10} strokeWidth={1.8} />
-              </button>
+              <div className="ot-actions">
+                <button
+                  className="ot-edit-btn"
+                  title="Editar ventana horaria"
+                  onClick={e => { e.stopPropagation(); setEditingId(editingId === order.id ? null : order.id) }}
+                >
+                  <Pencil size={10} strokeWidth={1.8} />
+                </button>
+                <button
+                  className="ot-edit-btn ot-delete-btn"
+                  title="Eliminar orden"
+                  onClick={e => { e.stopPropagation(); onDeleteOrder?.(order.id) }}
+                >
+                  <Trash2 size={10} strokeWidth={1.8} />
+                </button>
+              </div>
               {editingId === order.id ? (
                 <div className="time-edit" onClick={e => e.stopPropagation()}>
                   <input

@@ -73,6 +73,14 @@ export default function App() {
     setPendingEdits({})
   }, [])
 
+  const handleDeleteOrder = useCallback(id => {
+    setOrders(prev => prev.filter(o => o.id !== id))
+    setPendingEdits(prev => { const n = { ...prev }; delete n[id]; return n })
+    setResult(null)
+    setStopCoords([])
+    setRoutePolyline(null)
+  }, [])
+
   // Geocodifica usando Google si hay key, si no usa Nominatim
   const resolveCoords = async (address) => {
     if (googleKey) {
@@ -376,6 +384,7 @@ export default function App() {
                 onFocusStop={handleFocusStop}
                 pendingEdits={pendingEdits}
                 onEditOrder={handleEditOrder}
+                onDeleteOrder={handleDeleteOrder}
               />
 
               <div className="opt-wrap">

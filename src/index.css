@@ -339,6 +339,11 @@ header {
   gap: 3px;
 }
 
+.ot-actions {
+  display: flex;
+  gap: 4px;
+}
+
 .ot-edit-btn {
   display: flex;
   align-items: center;
@@ -358,6 +363,11 @@ header {
   background: var(--text);
   color: var(--bg);
   border-color: var(--text);
+}
+.ot-delete-btn:hover {
+  background: #c0392b;
+  border-color: #c0392b;
+  color: white;
 }
 
 .ot-win { font-size: 9px; color: var(--accent2); margin-top: 0; letter-spacing: 0.5px; }
