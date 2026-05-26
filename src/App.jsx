@@ -380,6 +380,7 @@ export default function App() {
           onHighlight={handleHighlight}
           consumption={consumption}
           fuelPrice={fuelPrice}
+          onFocusStop={handleFocusStop}
         />
       </div>
     </>
