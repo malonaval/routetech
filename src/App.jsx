@@ -32,8 +32,8 @@ export default function App() {
   const [routePolyline, setRoutePolyline] = useState(null) // [[lat,lng],...] de Google
   const [highlightedId, setHighlightedId] = useState(null)
   const [pendingEdits, setPendingEdits] = useState({}) // { [orderId]: { ventana_tipo, ventana_inicio, ventana_fin } }
-  const [groqExpanded,   setGroqExpanded]   = useState(() => !localStorage.getItem('rt_groqkey'))
-  const [googleExpanded, setGoogleExpanded] = useState(() => !localStorage.getItem('rt_googlekey'))
+  const [groqExpanded,   setGroqExpanded]   = useState(() => !(localStorage.getItem('rt_groqkey') || import.meta.env.VITE_GROQ_KEY || ''))
+  const [googleExpanded, setGoogleExpanded] = useState(() => !(localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || ''))
 
   const saveKey = (storageKey, value, setter) => {
     setter(value)
