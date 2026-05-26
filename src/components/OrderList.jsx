@@ -1,9 +1,11 @@
 import { Check, Navigation, Map, Cpu, X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 // stopCoords: [{ order, stop, coords, googleLeg }] — puede ser null si aún no se han geocodificado
 export default function OrderList({ orders, result, stopCoords = [], highlightedId, onFocusStop, pendingEdits = {}, onEditOrder }) {
   const [editingId, setEditingId] = useState(null)
+
+  useEffect(() => { setEditingId(null) }, [orders])
 
   const legByOrderId = Object.fromEntries(
     stopCoords.filter(s => s.googleLeg).map(s => [s.order.id, s.googleLeg])
@@ -88,7 +90,10 @@ export default function OrderList({ orders, result, stopCoords = [], highlighted
                     className="time-input"
                     type="time"
                     value={(pendingEdits[order.id]?.ventana_fin ?? order.ventana_fin) || ''}
-                    onChange={e => onEditOrder(order.id, { ventana_fin: e.target.value, ventana_tipo: 'fija' })}
+                    onChange={e => {
+                      const currentInicio = pendingEdits[order.id]?.ventana_inicio ?? order.ventana_inicio
+                      onEditOrder(order.id, { ventana_fin: e.target.value, ...(currentInicio ? { ventana_tipo: 'fija' } : {}) })
+                    }}
                   />
                   <button
                     className="time-clear-btn"

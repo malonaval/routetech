@@ -51,6 +51,7 @@ export default function App() {
     setOriginCoords(null)
     setRoutePolyline(null)
     setError(null)
+    setPendingEdits({})
   }, [])
 
   const handleFocusStop = useCallback(id => {
