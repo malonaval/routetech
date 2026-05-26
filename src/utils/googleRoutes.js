@@ -70,6 +70,13 @@ export async function getGoogleRoute(apiKey, originCoords, orderedStops) {
 
   const route = data.routes[0]
 
+  // DEBUG: ver si Google devuelve duration_in_traffic
+  console.log('[Google Directions] primer leg:', {
+    duration: route.legs[0]?.duration,
+    duration_in_traffic: route.legs[0]?.duration_in_traffic,
+    departure_time: route.legs[0]?.departure_time,
+  })
+
   const legs = route.legs.map(leg => ({
     // duration_in_traffic disponible cuando departure_time=now
     durationSecs:          leg.duration_in_traffic?.value ?? leg.duration.value,
