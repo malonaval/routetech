@@ -32,6 +32,8 @@ export default function App() {
   const [routePolyline, setRoutePolyline] = useState(null) // [[lat,lng],...] de Google
   const [highlightedId, setHighlightedId] = useState(null)
   const [pendingEdits, setPendingEdits] = useState({}) // { [orderId]: { ventana_tipo, ventana_inicio, ventana_fin } }
+  const [groqExpanded,   setGroqExpanded]   = useState(() => !localStorage.getItem('rt_groqkey'))
+  const [googleExpanded, setGoogleExpanded] = useState(() => !localStorage.getItem('rt_googlekey'))
 
   const saveKey = (storageKey, value, setter) => {
     setter(value)
@@ -213,59 +215,93 @@ export default function App() {
 
           {/* ── Groq API Key ── */}
           <div className="panel-section">
-            <div className="section-label">
+            <div
+              className="section-label"
+              style={{ cursor: groqKey ? 'pointer' : 'default' }}
+              onClick={() => groqKey && setGroqExpanded(v => !v)}
+            >
               {groqKey
-                ? <Key size={13} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+                ? <Key size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--text)' }} />
                 : <AlertTriangle size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: '#c0392b' }} />
               }
               Groq API Key
+              {groqKey && (
+                <span style={{ marginLeft: 'auto', fontSize: '9px', color: 'var(--muted)', letterSpacing: '1px' }}>
+                  {groqExpanded ? 'OCULTAR' : 'CONFIGURADA · EDITAR'}
+                </span>
+              )}
             </div>
-            <input
-              type="password"
-              className="origin-input"
-              value={groqKey}
-              onChange={e => saveKey('rt_groqkey', e.target.value, setGroqKey)}
-              placeholder="gsk_..."
-              autoComplete="off"
-            />
-            {!groqKey && (
-              <p className="apikey-hint">
-                Gratis en{' '}
-                <a href="https://console.groq.com" target="_blank" rel="noreferrer">
-                  console.groq.com
-                </a>
-              </p>
+            {(!groqKey || groqExpanded) && (
+              <>
+                <input
+                  type="password"
+                  className="origin-input"
+                  value={groqKey}
+                  onChange={e => {
+                    saveKey('rt_groqkey', e.target.value, setGroqKey)
+                    if (e.target.value) setGroqExpanded(false)
+                  }}
+                  placeholder="gsk_..."
+                  autoComplete="off"
+                  autoFocus={groqExpanded && !!groqKey}
+                />
+                {!groqKey && (
+                  <p className="apikey-hint">
+                    Gratis en{' '}
+                    <a href="https://console.groq.com" target="_blank" rel="noreferrer">
+                      console.groq.com
+                    </a>
+                  </p>
+                )}
+              </>
             )}
           </div>
 
           {/* ── Google Maps API Key (opcional) ── */}
           <div className="panel-section">
-            <div className="section-label">
+            <div
+              className="section-label"
+              style={{ cursor: googleKey ? 'pointer' : 'default' }}
+              onClick={() => googleKey && setGoogleExpanded(v => !v)}
+            >
               {googleKey
                 ? <Map size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--blue)' }} />
                 : <Circle size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--muted)' }} />
               }
               Google Maps API Key
-              <span style={{ fontSize: '8px', color: 'var(--muted)', letterSpacing: '1px' }}>
-                (tráfico real)
-              </span>
+              {googleKey ? (
+                <span style={{ marginLeft: 'auto', fontSize: '9px', color: 'var(--muted)', letterSpacing: '1px' }}>
+                  {googleExpanded ? 'OCULTAR' : 'CONFIGURADA · EDITAR'}
+                </span>
+              ) : (
+                <span style={{ fontSize: '8px', color: 'var(--muted)', letterSpacing: '1px' }}>
+                  (tráfico real)
+                </span>
+              )}
             </div>
-            <input
-              type="password"
-              className="origin-input"
-              value={googleKey}
-              onChange={e => saveKey('rt_googlekey', e.target.value, setGoogleKey)}
-              placeholder="AIza..."
-              autoComplete="off"
-            />
-            {!googleKey && (
-              <p className="apikey-hint">
-                Sin key se usan estimaciones de IA.{' '}
-                <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer">
-                  Obtener en Google Cloud
-                </a>{' '}
-                (activar Directions API + Geocoding API)
-              </p>
+            {(!googleKey || googleExpanded) && (
+              <>
+                <input
+                  type="password"
+                  className="origin-input"
+                  value={googleKey}
+                  onChange={e => {
+                    saveKey('rt_googlekey', e.target.value, setGoogleKey)
+                    if (e.target.value) setGoogleExpanded(false)
+                  }}
+                  placeholder="AIza..."
+                  autoComplete="off"
+                />
+                {!googleKey && (
+                  <p className="apikey-hint">
+                    Sin key se usan estimaciones de IA.{' '}
+                    <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer">
+                      Obtener en Google Cloud
+                    </a>{' '}
+                    (activar Directions API + Geocoding API)
+                  </p>
+                )}
+              </>
             )}
           </div>
 
