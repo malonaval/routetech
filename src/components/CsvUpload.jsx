@@ -1,29 +1,29 @@
 import { useState } from 'react'
 import { Upload, Zap, Check } from 'lucide-react'
 
-const DEMO_CSV = `cliente,direccion,duracion_min,ventana_tipo,ventana_inicio,ventana_fin
-María García,Calle de Alcalá 120 Madrid,60,fija,09:00,10:00
-Carlos López,Calle de Bravo Murillo 78 Madrid,45,flexible,,
-Ana Martínez,Paseo de las Delicias 56 Madrid,30,fija,11:30,12:30
-Pedro Jiménez,Calle de Embajadores 34 Madrid,45,flexible,,
-Laura Rodríguez,Calle de Fuencarral 102 Madrid,60,flexible,,
-Miguel Fernández,Calle de Toledo 89 Madrid,30,fija,13:00,14:00
-Carmen Sánchez,Calle de Santa Engracia 67 Madrid,45,flexible,,
-Antonio Ruiz,Calle de Fernández de los Ríos 45 Madrid,30,flexible,,
-Isabel Moreno,Calle de O'Donnell 42 Madrid,60,fija,17:00,18:00
-Francisco Díaz,Avenida de Entrevías 23 Madrid,45,flexible,,`
+const DEMO_CSV = `cliente,direccion,duracion_min,ventana_tipo,ventana_inicio,ventana_fin,telefono
+María García,Calle de Alcalá 120 Madrid,60,fija,09:00,10:00,+34 612 345 678
+Carlos López,Calle de Bravo Murillo 78 Madrid,45,flexible,,,+34 623 456 789
+Ana Martínez,Paseo de las Delicias 56 Madrid,30,fija,11:30,12:30,+34 634 567 890
+Pedro Jiménez,Calle de Embajadores 34 Madrid,45,flexible,,,+34 645 678 901
+Laura Rodríguez,Calle de Fuencarral 102 Madrid,60,flexible,,,+34 656 789 012
+Miguel Fernández,Calle de Toledo 89 Madrid,30,fija,13:00,14:00,+34 667 890 123
+Carmen Sánchez,Calle de Santa Engracia 67 Madrid,45,flexible,,,+34 678 901 234
+Antonio Ruiz,Calle de Fernández de los Ríos 45 Madrid,30,flexible,,,+34 689 012 345
+Isabel Moreno,Calle de O'Donnell 42 Madrid,60,fija,17:00,18:00,+34 690 123 456
+Francisco Díaz,Avenida de Entrevías 23 Madrid,45,flexible,,,+34 601 234 567`
 
-const DEMO_CSV_NORTE = `cliente,direccion,duracion_min,ventana_tipo,ventana_inicio,ventana_fin
-Elena Vázquez,Calle de Silvano 12 Madrid,60,fija,09:00,10:00
-Roberto Iglesias,Avenida de Manoteras 34 Madrid,45,flexible,,
-Sofía Castro,Calle de Arturo Soria 180 Madrid,30,fija,11:00,12:00
-Javier Morales,Calle del Mar Egeo 8 Madrid,45,flexible,,
-Patricia Núñez,Avenida de San Luis 45 Madrid,60,flexible,,
-Andrés Herrero,Calle de Sanchinarro 23 Madrid,30,fija,13:30,14:30
-Lucía Domínguez,Calle de las Tablas 67 Madrid,45,flexible,,
-Manuel Romero,Avenida de Montecarmelo 15 Madrid,30,flexible,,
-Teresa Alonso,Calle del Padre Damián 28 Madrid,60,fija,16:00,17:00
-Gonzalo Reyes,Calle de Hortaleza 120 Madrid,45,flexible,,`
+const DEMO_CSV_NORTE = `cliente,direccion,duracion_min,ventana_tipo,ventana_inicio,ventana_fin,telefono
+Elena Vázquez,Calle de Silvano 12 Madrid,60,fija,09:00,10:00,+34 611 111 001
+Roberto Iglesias,Avenida de Manoteras 34 Madrid,45,flexible,,,+34 622 222 002
+Sofía Castro,Calle de Arturo Soria 180 Madrid,30,fija,11:00,12:00,+34 633 333 003
+Javier Morales,Calle del Mar Egeo 8 Madrid,45,flexible,,,+34 644 444 004
+Patricia Núñez,Avenida de San Luis 45 Madrid,60,flexible,,,+34 655 555 005
+Andrés Herrero,Calle de Sanchinarro 23 Madrid,30,fija,13:30,14:30,+34 666 666 006
+Lucía Domínguez,Calle de las Tablas 67 Madrid,45,flexible,,,+34 677 777 007
+Manuel Romero,Avenida de Montecarmelo 15 Madrid,30,flexible,,,+34 688 888 008
+Teresa Alonso,Calle del Padre Damián 28 Madrid,60,fija,16:00,17:00,+34 699 999 009
+Gonzalo Reyes,Calle de Hortaleza 120 Madrid,45,flexible,,,+34 600 000 010`
 
 function parseCSVText(text) {
   const lines = text.trim().split('\n').filter(l => l.trim())
@@ -43,6 +43,7 @@ function parseCSVText(text) {
         ventana_tipo: (row.ventana_tipo || 'flexible').toLowerCase(),
         ventana_inicio: row.ventana_inicio || '',
         ventana_fin: row.ventana_fin || '',
+        telefono: row.telefono || row.phone || row.tel || '',
       })
     }
   }
@@ -119,7 +120,7 @@ export default function CsvUpload({ onOrdersLoaded, hasOrders, orderCount = 0 })
             <div className="drop-sub">o haz clic para seleccionar</div>
             <div className="drop-fmt">
               cliente, direccion, duracion_min<br />
-              ventana_tipo, ventana_inicio, ventana_fin
+              ventana_tipo, ventana_inicio, ventana_fin, telefono
             </div>
           </div>
 

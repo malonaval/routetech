@@ -815,6 +815,25 @@ header {
   font-weight: 500;
 }
 
+.call-phone-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 7px;
+  background: #16a34a;
+  color: white;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 500;
+  text-decoration: none;
+  letter-spacing: 0.3px;
+  transition: background 0.15s;
+}
+.call-phone-btn:hover {
+  background: #15803d;
+}
+
 .call-suggested {
   display: inline-flex;
   align-items: center;

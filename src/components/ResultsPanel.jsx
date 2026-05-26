@@ -1,12 +1,11 @@
-import { Map, Cpu, Phone, ChevronRight, Clock, AlertTriangle } from 'lucide-react'
+import { Map, Cpu, Phone, ChevronRight, Clock, AlertTriangle, PhoneCall } from 'lucide-react'
 
 export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, stopCoords = [] }) {
   if (!result) return null
 
-  // Index traffic legs by order id for quick lookup
-  const legById = Object.fromEntries(
-    stopCoords.filter(s => s.googleLeg).map(s => [s.order.id, s.googleLeg])
-  )
+  // Index traffic legs and phone numbers by order id
+  const legById   = Object.fromEntries(stopCoords.filter(s => s.googleLeg).map(s => [s.order.id, s.googleLeg]))
+  const phoneById = Object.fromEntries(stopCoords.filter(s => s.order?.telefono).map(s => [s.order.id, s.order.telefono]))
 
   const sb = result.savings_breakdown
   const savedKm = sb ? (sb.original_estimated_km - sb.optimised_km) : null
@@ -67,6 +66,7 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
             const trafficDelay = leg?.hasRealTraffic
               ? leg.durationMins - leg.durationNoTrafficMins
               : 0
+            const phone = phoneById[s.ot_id]
             return (
               <div
                 key={s.ot_id}
@@ -74,7 +74,20 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
                 onClick={() => onFocusStop?.(s.ot_id)}
               >
                 <div className="call-info">
-                  <div className="call-client">{s.cliente}</div>
+                  <div className="call-client">
+                    {s.cliente}
+                    {phone && (
+                      <a
+                        href={`tel:${phone.replace(/\s/g, '')}`}
+                        className="call-phone-btn"
+                        title={`Llamar: ${phone}`}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <PhoneCall size={11} strokeWidth={2} />
+                        {phone}
+                      </a>
+                    )}
+                  </div>
                   <div className="call-window">
                     Ahora: {s.current_window}
                     {s.suggested_time && (
