@@ -204,7 +204,7 @@ export default function RouteMap({
       {error && <div className="error-toast">{error}</div>}
 
       {/* Razonamiento IA */}
-      <ResultsPanel result={result} hasRealRoute={!!routePolyline} consumption={consumption} fuelPrice={fuelPrice} onFocusStop={onFocusStop} />
+      <ResultsPanel result={result} hasRealRoute={!!routePolyline} consumption={consumption} fuelPrice={fuelPrice} onFocusStop={onFocusStop} stopCoords={stopCoords} />
     </div>
   )
 }

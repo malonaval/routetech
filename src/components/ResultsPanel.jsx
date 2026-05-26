@@ -1,7 +1,12 @@
-import { Map, Cpu, Phone, ChevronRight } from 'lucide-react'
+import { Map, Cpu, Phone, ChevronRight, Clock, AlertTriangle } from 'lucide-react'
 
-export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop }) {
+export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, stopCoords = [] }) {
   if (!result) return null
+
+  // Index traffic legs by order id for quick lookup
+  const legById = Object.fromEntries(
+    stopCoords.filter(s => s.googleLeg).map(s => [s.order.id, s.googleLeg])
+  )
 
   const sb = result.savings_breakdown
   const savedKm = sb ? (sb.original_estimated_km - sb.optimised_km) : null
@@ -57,23 +62,43 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
             <Phone size={11} strokeWidth={1.5} />
             Llamadas recomendadas
           </div>
-          {result.call_suggestions.map(s => (
-            <div
-              key={s.ot_id}
-              className="call-row"
-              onClick={() => onFocusStop?.(s.ot_id)}
-            >
-              <div className="call-info">
-                <div className="call-client">{s.cliente}</div>
-                <div className="call-window">{s.current_window}</div>
-                <div className="call-reason">{s.reason}</div>
+          {result.call_suggestions.map(s => {
+            const leg = legById[s.ot_id]
+            const trafficDelay = leg?.hasRealTraffic
+              ? leg.durationMins - leg.durationNoTrafficMins
+              : 0
+            return (
+              <div
+                key={s.ot_id}
+                className="call-row"
+                onClick={() => onFocusStop?.(s.ot_id)}
+              >
+                <div className="call-info">
+                  <div className="call-client">{s.cliente}</div>
+                  <div className="call-window">
+                    Ahora: {s.current_window}
+                    {s.suggested_time && (
+                      <span className="call-suggested">
+                        <Clock size={9} strokeWidth={2} />
+                        Proponer: {s.suggested_time}
+                      </span>
+                    )}
+                  </div>
+                  {trafficDelay > 3 && (
+                    <div className="call-traffic">
+                      <AlertTriangle size={9} strokeWidth={2} />
+                      +{trafficDelay} min de tráfico en esta zona ahora
+                    </div>
+                  )}
+                  <div className="call-reason">{s.reason}</div>
+                </div>
+                <div className="call-saving">
+                  <span className="call-saving-val">+{s.potential_saving_minutes} min</span>
+                  <ChevronRight size={12} strokeWidth={1.5} style={{ color: 'var(--muted)' }} />
+                </div>
               </div>
-              <div className="call-saving">
-                <span className="call-saving-val">+{s.potential_saving_minutes} min</span>
-                <ChevronRight size={12} strokeWidth={1.5} style={{ color: 'var(--muted)' }} />
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
