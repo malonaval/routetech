@@ -124,6 +124,7 @@ export default function App() {
 
       setStopCoords(stops)
       setResult(aiResult)
+      setOrders(mergedOrders)   // aplicar edits permanentemente
       setPendingEdits({})
 
       // 4 · Ruta real con tráfico (solo si hay key de Google)
