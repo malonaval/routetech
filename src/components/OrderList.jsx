@@ -1,4 +1,4 @@
-import { Check, Navigation, Map, Cpu, X } from 'lucide-react'
+import { Check, Navigation, Map, Cpu, X, Pencil } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 // stopCoords: [{ order, stop, coords, googleLeg }] — puede ser null si aún no se han geocodificado
@@ -73,10 +73,14 @@ export default function OrderList({ orders, result, stopCoords = [], highlighted
               </div>
             </div>
 
-            <div
-              className="ot-time"
-              onClick={e => { e.stopPropagation(); setEditingId(editingId === order.id ? null : order.id) }}
-            >
+            <div className="ot-time">
+              <button
+                className="ot-edit-btn"
+                title="Editar ventana horaria"
+                onClick={e => { e.stopPropagation(); setEditingId(editingId === order.id ? null : order.id) }}
+              >
+                <Pencil size={10} strokeWidth={1.8} />
+              </button>
               {editingId === order.id ? (
                 <div className="time-edit" onClick={e => e.stopPropagation()}>
                   <input
