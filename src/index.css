@@ -548,4 +548,5 @@ header {
 }
 .demo-btn-row .btn-demo {
   flex: 1;
+  margin-top: 0;
 }
