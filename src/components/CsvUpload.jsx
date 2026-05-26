@@ -13,6 +13,18 @@ Antonio Ruiz,Calle de Fernández de los Ríos 45 Madrid,30,flexible,,
 Isabel Moreno,Calle de O'Donnell 42 Madrid,60,fija,17:00,18:00
 Francisco Díaz,Avenida de Entrevías 23 Madrid,45,flexible,,`
 
+const DEMO_CSV_NORTE = `cliente,direccion,duracion_min,ventana_tipo,ventana_inicio,ventana_fin
+Elena Vázquez,Calle de Silvano 12 Madrid,60,fija,09:00,10:00
+Roberto Iglesias,Avenida de Manoteras 34 Madrid,45,flexible,,
+Sofía Castro,Calle de Arturo Soria 180 Madrid,30,fija,11:00,12:00
+Javier Morales,Calle del Mar Egeo 8 Madrid,45,flexible,,
+Patricia Núñez,Avenida de San Luis 45 Madrid,60,flexible,,
+Andrés Herrero,Calle de Sanchinarro 23 Madrid,30,fija,13:30,14:30
+Lucía Domínguez,Calle de las Tablas 67 Madrid,45,flexible,,
+Manuel Romero,Avenida de Montecarmelo 15 Madrid,30,flexible,,
+Teresa Alonso,Calle del Padre Damián 28 Madrid,60,fija,16:00,17:00
+Gonzalo Reyes,Calle de Hortaleza 120 Madrid,45,flexible,,`
+
 function parseCSVText(text) {
   const lines = text.trim().split('\n').filter(l => l.trim())
   if (lines.length < 2) return []
@@ -64,8 +76,13 @@ export default function CsvUpload({ onOrdersLoaded, hasOrders }) {
     reader.readAsText(file, 'UTF-8')
   }
 
-  const loadDemo = () => {
+  const loadDemoCentro = () => {
     const orders = parseCSVText(DEMO_CSV)
+    if (orders.length) onOrdersLoaded(orders)
+  }
+
+  const loadDemoNorte = () => {
+    const orders = parseCSVText(DEMO_CSV_NORTE)
     if (orders.length) onOrdersLoaded(orders)
   }
 
@@ -94,10 +111,16 @@ export default function CsvUpload({ onOrdersLoaded, hasOrders }) {
         </div>
       </div>
 
-      <button className="btn-demo" onClick={loadDemo}>
-        <Zap size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />
-        Cargar 10 clientes de ejemplo (Madrid)
-      </button>
+      <div className="demo-btn-row">
+        <button className="btn-demo" onClick={loadDemoCentro}>
+          <Zap size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />
+          Madrid Centro
+        </button>
+        <button className="btn-demo" onClick={loadDemoNorte}>
+          <Zap size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />
+          Madrid Norte
+        </button>
+      </div>
     </div>
   )
 }
