@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { Key, AlertTriangle, Map, Circle, LocateFixed } from 'lucide-react'
+import { Key, AlertTriangle, Map, Circle, LocateFixed, Fuel } from 'lucide-react'
 import CsvUpload from './components/CsvUpload'
 import OrderList from './components/OrderList'
 import RouteMap from './components/RouteMap'
@@ -20,6 +20,8 @@ export default function App() {
 
   const [groqKey,   setGroqKey]   = useState(() => localStorage.getItem('rt_groqkey')   || import.meta.env.VITE_GROQ_KEY   || '')
   const [googleKey, setGoogleKey] = useState(() => localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || '')
+  const [consumption, setConsumption] = useState(() => { const v = parseFloat(localStorage.getItem('rt_consumption')); return isNaN(v) ? 9 : v })
+  const [fuelPrice,   setFuelPrice]   = useState(() => { const v = parseFloat(localStorage.getItem('rt_fuel_price'));  return isNaN(v) ? 1.65 : v })
 
   const [result,        setResult]        = useState(null)
   const [loading,       setLoading]       = useState(false)
@@ -29,10 +31,17 @@ export default function App() {
   const [stopCoords,    setStopCoords]    = useState([])
   const [routePolyline, setRoutePolyline] = useState(null) // [[lat,lng],...] de Google
   const [highlightedId, setHighlightedId] = useState(null)
+  const [pendingEdits, setPendingEdits] = useState({}) // { [orderId]: { ventana_tipo, ventana_inicio, ventana_fin } }
 
   const saveKey = (storageKey, value, setter) => {
     setter(value)
     localStorage.setItem(storageKey, value)
+  }
+
+  const saveNum = (storageKey, value, setter) => {
+    const n = parseFloat(value) || 0
+    setter(n)
+    localStorage.setItem(storageKey, n)
   }
 
   const handleOrders = useCallback(newOrders => {
@@ -42,6 +51,7 @@ export default function App() {
     setOriginCoords(null)
     setRoutePolyline(null)
     setError(null)
+    setPendingEdits({})
   }, [])
 
   const handleFocusStop = useCallback(id => {
@@ -51,6 +61,14 @@ export default function App() {
 
   const handleHighlight = useCallback((id, on) => {
     setHighlightedId(on ? id : null)
+  }, [])
+
+  const handleEditOrder = useCallback((id, changes) => {
+    setPendingEdits(prev => ({ ...prev, [id]: { ...(prev[id] || {}), ...changes } }))
+  }, [])
+
+  const handleClearEdits = useCallback(() => {
+    setPendingEdits({})
   }, [])
 
   // Geocodifica usando Google si hay key, si no usa Nominatim
@@ -82,7 +100,10 @@ export default function App() {
 
     try {
       // 1 · IA optimiza la secuencia
-      const aiResult = await callGroqAPI(groqKey, origin.trim(), orders)
+      const mergedOrders = orders.map(o =>
+        pendingEdits[o.id] ? { ...o, ...pendingEdits[o.id] } : o
+      )
+      const aiResult = await callGroqAPI(groqKey, origin.trim(), mergedOrders)
 
       // 2 · Geocodificar origen
       const oCoords = await resolveCoords(origin.trim())
@@ -101,6 +122,7 @@ export default function App() {
 
       setStopCoords(stops)
       setResult(aiResult)
+      setPendingEdits({})
 
       // 4 · Ruta real con tráfico (solo si hay key de Google)
       if (googleKey && oCoords) {
@@ -247,6 +269,44 @@ export default function App() {
             )}
           </div>
 
+          {/* ── Vehículo / Combustible ── */}
+          <div className="panel-section">
+            <div className="section-label">
+              <Fuel size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--muted)' }} />
+              Vehículo
+            </div>
+            <div className="fuel-row">
+              <div className="fuel-field">
+                <label className="fuel-label">Consumo</label>
+                <div className="fuel-input-wrap">
+                  <input
+                    type="number"
+                    className="fuel-input"
+                    value={consumption}
+                    min="1" max="30" step="0.5"
+                    onChange={e => { const n = parseFloat(e.target.value); setConsumption(isNaN(n) ? '' : n) }}
+                    onBlur={e => saveNum('rt_consumption', e.target.value, setConsumption)}
+                  />
+                  <span className="fuel-unit">l/100km</span>
+                </div>
+              </div>
+              <div className="fuel-field">
+                <label className="fuel-label">Precio</label>
+                <div className="fuel-input-wrap">
+                  <input
+                    type="number"
+                    className="fuel-input"
+                    value={fuelPrice}
+                    min="0.5" max="5" step="0.01"
+                    onChange={e => { const n = parseFloat(e.target.value); setFuelPrice(isNaN(n) ? '' : n) }}
+                    onBlur={e => saveNum('rt_fuel_price', e.target.value, setFuelPrice)}
+                  />
+                  <span className="fuel-unit">€/l</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* ── CSV Upload ── */}
           <CsvUpload onOrdersLoaded={handleOrders} hasOrders={orders.length > 0} />
 
@@ -277,11 +337,23 @@ export default function App() {
                 stopCoords={stopCoords}
                 highlightedId={highlightedId}
                 onFocusStop={handleFocusStop}
+                pendingEdits={pendingEdits}
+                onEditOrder={handleEditOrder}
               />
 
               <div className="opt-wrap">
-                <button className="btn-optimize" onClick={handleOptimize} disabled={!canOptimize}>
-                  Calcular ruta óptima
+                {Object.keys(pendingEdits).length > 0 && (
+                  <div className="pending-banner">
+                    {Object.keys(pendingEdits).length} orden{Object.keys(pendingEdits).length > 1 ? 'es' : ''} modificada{Object.keys(pendingEdits).length > 1 ? 's' : ''}
+                    <button className="pending-clear" onClick={handleClearEdits}>Deshacer</button>
+                  </div>
+                )}
+                <button
+                  className={`btn-optimize${Object.keys(pendingEdits).length > 0 ? ' btn-recalculate' : ''}`}
+                  onClick={handleOptimize}
+                  disabled={!canOptimize}
+                >
+                  {Object.keys(pendingEdits).length > 0 ? 'Recalcular con cambios' : 'Calcular ruta óptima'}
                   <span className="btn-sub">
                     {!groqKey
                       ? 'Configura tu Groq API Key primero'
@@ -306,6 +378,9 @@ export default function App() {
           result={result}
           highlightedId={highlightedId}
           onHighlight={handleHighlight}
+          consumption={consumption}
+          fuelPrice={fuelPrice}
+          onFocusStop={handleFocusStop}
         />
       </div>
     </>

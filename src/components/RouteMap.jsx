@@ -47,6 +47,9 @@ export default function RouteMap({
   result,
   highlightedId,
   onHighlight,
+  consumption,
+  fuelPrice,
+  onFocusStop,
 }) {
   const bounds = useMemo(() => [
     ...(originCoords ? [[originCoords.lat, originCoords.lng]] : []),
@@ -201,7 +204,7 @@ export default function RouteMap({
       {error && <div className="error-toast">{error}</div>}
 
       {/* Razonamiento IA */}
-      <ResultsPanel result={result} hasRealRoute={!!routePolyline} />
+      <ResultsPanel result={result} hasRealRoute={!!routePolyline} consumption={consumption} fuelPrice={fuelPrice} onFocusStop={onFocusStop} />
     </div>
   )
 }

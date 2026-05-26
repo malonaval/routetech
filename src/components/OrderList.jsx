@@ -1,8 +1,12 @@
-import { Check, Navigation, Map, Cpu } from 'lucide-react'
+import { Check, Navigation, Map, Cpu, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 // stopCoords: [{ order, stop, coords, googleLeg }] — puede ser null si aún no se han geocodificado
-export default function OrderList({ orders, result, stopCoords = [], highlightedId, onFocusStop }) {
-  // Mapa rápido id → googleLeg
+export default function OrderList({ orders, result, stopCoords = [], highlightedId, onFocusStop, pendingEdits = {}, onEditOrder }) {
+  const [editingId, setEditingId] = useState(null)
+
+  useEffect(() => { setEditingId(null) }, [orders])
+
   const legByOrderId = Object.fromEntries(
     stopCoords.filter(s => s.googleLeg).map(s => [s.order.id, s.googleLeg])
   )
@@ -15,15 +19,16 @@ export default function OrderList({ orders, result, stopCoords = [], highlighted
       </div>
 
       {orders.map((order, i) => {
-        const seqStop  = result?.sequence.find(s => s.ot_id === order.id) ?? null
+        const seqStop   = result?.sequence.find(s => s.ot_id === order.id) ?? null
         const googleLeg = legByOrderId[order.id] ?? null
-        const pos      = i + 1
-        const isFixed  = order.ventana_tipo === 'fija'
+        const pos       = i + 1
+        const effectiveVentanaTipo = pendingEdits[order.id]?.ventana_tipo ?? order.ventana_tipo
+        const isFixed   = effectiveVentanaTipo === 'fija'
 
         return (
           <div
             key={order.id}
-            className={`ot-row${highlightedId === order.id ? ' highlighted' : ''}`}
+            className={`ot-row${highlightedId === order.id ? ' highlighted' : ''}${pendingEdits[order.id] ? ' pending' : ''}`}
             onClick={() => onFocusStop(order.id)}
           >
             <div className={`ot-pos ${isFixed ? 'fixed-col' : 'flex-col'}`}>{pos}</div>
@@ -36,7 +41,6 @@ export default function OrderList({ orders, result, stopCoords = [], highlighted
                   {isFixed ? 'FIJA' : 'FLEXIBLE'}
                 </span>
                 <span className="tag tag-plain">{order.duracion} min</span>
-                {/* Tiempo real de Google o estimación de IA */}
                 {googleLeg ? (
                   <>
                     <span
@@ -69,15 +73,51 @@ export default function OrderList({ orders, result, stopCoords = [], highlighted
               </div>
             </div>
 
-            <div className="ot-time">
-              {seqStop ? seqStop.arrival_time : (order.ventana_inicio || '—')}
-              {order.ventana_fin && (
-                <div className="ot-win">→ {order.ventana_fin}</div>
-              )}
-              {googleLeg && (
-                <div style={{ fontSize: '9px', color: 'var(--blue)', marginTop: '2px' }}>
-                  {googleLeg.distanceText}
+            <div
+              className="ot-time"
+              onClick={e => { e.stopPropagation(); setEditingId(editingId === order.id ? null : order.id) }}
+            >
+              {editingId === order.id ? (
+                <div className="time-edit" onClick={e => e.stopPropagation()}>
+                  <input
+                    className="time-input"
+                    type="time"
+                    value={(pendingEdits[order.id]?.ventana_inicio ?? order.ventana_inicio) || ''}
+                    onChange={e => onEditOrder(order.id, { ventana_inicio: e.target.value, ventana_tipo: 'fija' })}
+                  />
+                  <span className="time-sep">→</span>
+                  <input
+                    className="time-input"
+                    type="time"
+                    value={(pendingEdits[order.id]?.ventana_fin ?? order.ventana_fin) || ''}
+                    onChange={e => {
+                      const currentInicio = pendingEdits[order.id]?.ventana_inicio ?? order.ventana_inicio
+                      onEditOrder(order.id, { ventana_fin: e.target.value, ...(currentInicio ? { ventana_tipo: 'fija' } : {}) })
+                    }}
+                  />
+                  <button
+                    className="time-clear-btn"
+                    title="Convertir a flexible"
+                    onClick={() => {
+                      onEditOrder(order.id, { ventana_tipo: 'flexible', ventana_inicio: '', ventana_fin: '' })
+                      setEditingId(null)
+                    }}
+                  >
+                    <X size={10} strokeWidth={2} />
+                  </button>
                 </div>
+              ) : (
+                <>
+                  {seqStop ? seqStop.arrival_time : ((pendingEdits[order.id]?.ventana_inicio ?? order.ventana_inicio) || '—')}
+                  {(pendingEdits[order.id]?.ventana_fin ?? order.ventana_fin) && (
+                    <div className="ot-win">→ {pendingEdits[order.id]?.ventana_fin ?? order.ventana_fin}</div>
+                  )}
+                  {googleLeg && (
+                    <div style={{ fontSize: '9px', color: 'var(--blue)', marginTop: '2px' }}>
+                      {googleLeg.distanceText}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
