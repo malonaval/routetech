@@ -96,3 +96,112 @@ Devuelve ÚNICAMENTE este JSON (sin texto adicional):
     return JSON.parse(match[1])
   }
 }
+
+export async function callGroqAPIMultiWorker(apiKey, workers) {
+  const workersText = workers
+    .map((w, i) => `${i + 1}. ${w.id} | Inicio: ${w.origin} | Horario: ${w.horario}`)
+    .join('\n')
+
+  const ordersText = workers
+    .flatMap(w =>
+      w.orders.map(o =>
+        `ID:${o.id} | Cliente:${o.cliente} | Dir:${o.direccion} | Dur:${o.duracion}min | ` +
+        `Ventana:${o.ventana_tipo}${o.ventana_inicio ? ` (${o.ventana_inicio}–${o.ventana_fin})` : ''} | ` +
+        `Trabajador inicial: ${w.id}`
+      )
+    )
+    .join('\n')
+
+  const prompt = `Optimiza las rutas de estos trabajadores. Puedes reasignar OTs entre trabajadores para equilibrar la carga y minimizar el tiempo total del equipo.
+
+TRABAJADORES:
+${workersText}
+
+ÓRDENES (asignación inicial orientativa, puedes reasignar libremente):
+${ordersText}
+
+REGLAS:
+- Reasigna OTs para que todos los trabajadores terminen a hora similar
+- Respeta ventanas "fija": el trabajador asignado debe llegar en esa franja exacta
+- Minimiza km totales entre todos los trabajadores
+- Cada trabajador sale de su punto de inicio a la hora de inicio de su horario
+- saving_minutes por trabajador = ahorro vs su orden original
+
+Devuelve ÚNICAMENTE este JSON (sin texto adicional):
+{
+  "workers": [
+    {
+      "trabajador": "Carlos",
+      "sequence": [
+        {
+          "position": 1,
+          "ot_id": "OT-XXXX",
+          "cliente": "nombre",
+          "arrival_time": "09:15",
+          "travel_minutes": 15,
+          "transport": "coche",
+          "window_type": "flexible",
+          "window_status": "en hora"
+        }
+      ],
+      "total_km": 24,
+      "total_mins_estimated": 180,
+      "end_time": "17:30",
+      "saving_minutes": 35
+    }
+  ],
+  "global_saving_minutes": 63,
+  "global_km": 45,
+  "reasoning": "Explicación de qué OTs se reasignaron y por qué, agrupaciones geográficas por trabajador",
+  "savings_breakdown": {
+    "original_estimated_mins": 420,
+    "optimised_mins": 357,
+    "original_estimated_km": 88,
+    "optimised_km": 45
+  },
+  "call_suggestions": [
+    {
+      "ot_id": "OT-XXXX",
+      "trabajador": "Carlos",
+      "cliente": "nombre",
+      "current_window": "09:00–10:00",
+      "suggested_time": "11:30",
+      "potential_saving_minutes": 18,
+      "reason": "Citándolo a las 11:30 quedaría entre [cliente A] y [cliente B], evitando un desvío de X km"
+    }
+  ]
+}`
+
+  const res = await fetch('/api/groq/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: 'Eres un optimizador de rutas para equipos de técnicos de campo en Madrid. Reasigna órdenes entre trabajadores para minimizar el tiempo total del equipo y equilibrar la carga. Agrupa órdenes geográficamente por trabajador. Respeta siempre las ventanas fijas. Explica en "reasoning" exactamente qué OTs reasignaste, de qué trabajador a cuál, y por qué. Usa nombres reales de clientes y calles. Responde ÚNICAMENTE con JSON válido.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      max_tokens: 4000,
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+    }),
+  })
+
+  const data = await res.json()
+  if (data.error) throw new Error(data.error.message)
+
+  const raw = data.choices?.[0]?.message?.content || ''
+  try {
+    return JSON.parse(raw)
+  } catch {
+    const match = raw.match(/```json\s*([\s\S]*?)```/) || raw.match(/(\{[\s\S]*\})/)
+    if (!match) throw new Error('Respuesta IA no válida. Inténtalo de nuevo.')
+    return JSON.parse(match[1])
+  }
+}
