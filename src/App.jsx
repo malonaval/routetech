@@ -31,6 +31,7 @@ export default function App() {
   const [stopCoords,    setStopCoords]    = useState([])
   const [routePolyline, setRoutePolyline] = useState(null) // [[lat,lng],...] de Google
   const [highlightedId, setHighlightedId] = useState(null)
+  const [pendingEdits, setPendingEdits] = useState({}) // { [orderId]: { ventana_tipo, ventana_inicio, ventana_fin } }
 
   const saveKey = (storageKey, value, setter) => {
     setter(value)
@@ -59,6 +60,14 @@ export default function App() {
 
   const handleHighlight = useCallback((id, on) => {
     setHighlightedId(on ? id : null)
+  }, [])
+
+  const handleEditOrder = useCallback((id, changes) => {
+    setPendingEdits(prev => ({ ...prev, [id]: { ...(prev[id] || {}), ...changes } }))
+  }, [])
+
+  const handleClearEdits = useCallback(() => {
+    setPendingEdits({})
   }, [])
 
   // Geocodifica usando Google si hay key, si no usa Nominatim
@@ -90,7 +99,10 @@ export default function App() {
 
     try {
       // 1 · IA optimiza la secuencia
-      const aiResult = await callGroqAPI(groqKey, origin.trim(), orders)
+      const mergedOrders = orders.map(o =>
+        pendingEdits[o.id] ? { ...o, ...pendingEdits[o.id] } : o
+      )
+      const aiResult = await callGroqAPI(groqKey, origin.trim(), mergedOrders)
 
       // 2 · Geocodificar origen
       const oCoords = await resolveCoords(origin.trim())
@@ -109,6 +121,7 @@ export default function App() {
 
       setStopCoords(stops)
       setResult(aiResult)
+      setPendingEdits({})
 
       // 4 · Ruta real con tráfico (solo si hay key de Google)
       if (googleKey && oCoords) {
@@ -323,11 +336,23 @@ export default function App() {
                 stopCoords={stopCoords}
                 highlightedId={highlightedId}
                 onFocusStop={handleFocusStop}
+                pendingEdits={pendingEdits}
+                onEditOrder={handleEditOrder}
               />
 
               <div className="opt-wrap">
-                <button className="btn-optimize" onClick={handleOptimize} disabled={!canOptimize}>
-                  Calcular ruta óptima
+                {Object.keys(pendingEdits).length > 0 && (
+                  <div className="pending-banner">
+                    {Object.keys(pendingEdits).length} orden{Object.keys(pendingEdits).length > 1 ? 'es' : ''} modificada{Object.keys(pendingEdits).length > 1 ? 's' : ''}
+                    <button className="pending-clear" onClick={handleClearEdits}>Deshacer</button>
+                  </div>
+                )}
+                <button
+                  className={`btn-optimize${Object.keys(pendingEdits).length > 0 ? ' btn-recalculate' : ''}`}
+                  onClick={handleOptimize}
+                  disabled={!canOptimize}
+                >
+                  {Object.keys(pendingEdits).length > 0 ? 'Recalcular con cambios' : 'Calcular ruta óptima'}
                   <span className="btn-sub">
                     {!groqKey
                       ? 'Configura tu Groq API Key primero'
