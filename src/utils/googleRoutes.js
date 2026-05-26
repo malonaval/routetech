@@ -30,55 +30,24 @@ export async function geocodeGoogle(address, apiKey) {
   return { lat, lng, display: data.results[0].formatted_address }
 }
 
-// Calcula la ruta real con tráfico usando Google Directions API
-// orderedStops: [{ coords: {lat, lng}, order, stop }, ...]
-export async function getGoogleRoute(apiKey, originCoords, orderedStops) {
-  const valid = orderedStops.filter(s => s.coords)
-  if (!valid.length || !originCoords) return null
-
-  const origin = `${originCoords.lat},${originCoords.lng}`
-  const dest   = `${valid[valid.length - 1].coords.lat},${valid[valid.length - 1].coords.lng}`
-
+// Llama a Directions API para un tramo único (sin waypoints → garantiza duration_in_traffic)
+async function fetchLeg(apiKey, fromCoords, toCoords) {
+  const departureTime = String(Math.floor(Date.now() / 1000))
   const params = new URLSearchParams({
-    origin,
-    destination: dest,
-    key: apiKey,
-    language: 'es',
-    region: 'es',
-    mode: 'driving',
-    departure_time: String(Math.floor(Date.now() / 1000)), // timestamp Unix — más fiable que 'now'
-    traffic_model: 'best_guess',
+    origin:         `${fromCoords.lat},${fromCoords.lng}`,
+    destination:    `${toCoords.lat},${toCoords.lng}`,
+    key:            apiKey,
+    language:       'es',
+    region:         'es',
+    mode:           'driving',
+    departure_time: departureTime,
+    traffic_model:  'best_guess',
   })
-
-  // Waypoints intermedios (todos excepto el destino final)
-  if (valid.length > 1) {
-    const wps = valid
-      .slice(0, -1)
-      .map(s => `${s.coords.lat},${s.coords.lng}`)
-      .join('|')
-    params.append('waypoints', wps)
-  }
-
-  const res = await fetch(`/api/gmaps/maps/api/directions/json?${params}`)
+  const res  = await fetch(`/api/gmaps/maps/api/directions/json?${params}`)
   const data = await res.json()
-
-  if (data.status !== 'OK') {
-    throw new Error(
-      `Google Directions: ${data.status}${data.error_message ? ' — ' + data.error_message : ''}`
-    )
-  }
-
-  const route = data.routes[0]
-
-  // DEBUG: ver si Google devuelve duration_in_traffic
-  console.log('[Google Directions] primer leg:', {
-    duration: route.legs[0]?.duration,
-    duration_in_traffic: route.legs[0]?.duration_in_traffic,
-    departure_time: route.legs[0]?.departure_time,
-  })
-
-  const legs = route.legs.map(leg => ({
-    // duration_in_traffic disponible cuando departure_time=now
+  if (data.status !== 'OK') throw new Error(`Google Directions: ${data.status}`)
+  const leg = data.routes[0].legs[0]
+  return {
     durationSecs:          leg.duration_in_traffic?.value ?? leg.duration.value,
     durationMins:          Math.round((leg.duration_in_traffic?.value ?? leg.duration.value) / 60),
     durationText:          leg.duration_in_traffic?.text  ?? leg.duration.text,
@@ -87,12 +56,33 @@ export async function getGoogleRoute(apiKey, originCoords, orderedStops) {
     distanceM:             leg.distance.value,
     distanceText:          leg.distance.text,
     distanceKm:            (leg.distance.value / 1000).toFixed(1),
-  }))
+    polyline:              data.routes[0].overview_polyline.points,
+  }
+}
+
+// Calcula la ruta real con tráfico: una llamada por tramo para garantizar duration_in_traffic
+// orderedStops: [{ coords: {lat, lng}, order, stop }, ...]
+export async function getGoogleRoute(apiKey, originCoords, orderedStops) {
+  const valid = orderedStops.filter(s => s.coords)
+  if (!valid.length || !originCoords) return null
+
+  // Construir lista de puntos: origen + todas las paradas
+  const points = [originCoords, ...valid.map(s => s.coords)]
+
+  // Una petición por tramo en paralelo
+  const legPromises = []
+  for (let i = 0; i < points.length - 1; i++) {
+    legPromises.push(fetchLeg(apiKey, points[i], points[i + 1]))
+  }
+  const legs = await Promise.all(legPromises)
+
+  // Concatenar polylines de cada tramo
+  const allPoints = legs.flatMap(l => decodePolyline(l.polyline))
 
   return {
-    polylinePoints: decodePolyline(route.overview_polyline.points),
+    polylinePoints: allPoints,
     legs,
-    totalKm: (legs.reduce((s, l) => s + l.distanceM, 0) / 1000).toFixed(1),
+    totalKm:   (legs.reduce((s, l) => s + l.distanceM, 0) / 1000).toFixed(1),
     totalMins: legs.reduce((s, l) => s + l.durationMins, 0),
   }
 }
