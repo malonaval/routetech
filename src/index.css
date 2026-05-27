@@ -1138,3 +1138,14 @@ header {
   font-size: 14px;
   color: var(--muted2);
 }
+.btn-logout {
+  font-size: 11px;
+  color: var(--muted2);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.btn-logout:hover { color: var(--text); }

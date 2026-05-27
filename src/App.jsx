@@ -1,4 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from './utils/supabaseClient'
 import { Key, AlertTriangle, Map, Circle, LocateFixed, Fuel } from 'lucide-react'
 import CsvUpload, { DEMO_ORDERS_CENTRO } from './components/CsvUpload'
 import DemoTour from './components/DemoTour'
@@ -164,6 +166,13 @@ export default function App() {
   const handleDemoNext  = useCallback(() => setDemoStep(s => s + 1), [])
   const handleDemoPrev  = useCallback(() => setDemoStep(s => Math.max(0, s - 1)), [])
   const handleDemoClose = useCallback(() => setDemoStep(null), [])
+
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    navigate('/login')
+  }
 
   const handleWorkerOriginChange = useCallback((workerId, value) => {
     setWorkers(prev => prev.map(w => w.id === workerId ? { ...w, origin: value } : w))
@@ -461,6 +470,13 @@ export default function App() {
         <div className="header-badge">Optimización de rutas · IA + Tráfico real</div>
         <button className="btn-demo-start" onClick={handleDemoStart}>
           ▶ Demo
+        </button>
+        <button
+          className="btn-logout"
+          onClick={handleLogout}
+          title="Cerrar sesión"
+        >
+          Salir
         </button>
 
         {result && (
