@@ -64,6 +64,7 @@ export const DEMO_ROUTE_POLYLINE = [
 
 // Pre-baked multi-worker result — injected at step 10 so .worker-breakdown renders
 export const DEMO_MULTI_RESULT = {
+  sequence: SEQUENCE,  // reuse single-worker sequence so OrderList doesn't crash
   workers: [
     { trabajador: 'Carlos', sequence: [], end_time: '17:15', total_km: 14.8, saving_minutes: 24 },
     { trabajador: 'Ana',    sequence: [], end_time: '17:20', total_km: 15.6, saving_minutes: 23 },

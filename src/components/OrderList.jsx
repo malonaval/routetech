@@ -19,7 +19,7 @@ export default function OrderList({ orders, result, stopCoords = [], highlighted
       </div>
 
       {orders.map((order, i) => {
-        const seqStop   = result?.sequence.find(s => s.ot_id === order.id) ?? null
+        const seqStop   = result?.sequence?.find(s => s.ot_id === order.id) ?? null
         const googleLeg = legByOrderId[order.id] ?? null
         const pos       = i + 1
         const effectiveVentanaTipo = pendingEdits[order.id]?.ventana_tipo ?? order.ventana_tipo
