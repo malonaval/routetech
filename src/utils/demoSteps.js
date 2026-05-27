@@ -62,9 +62,9 @@ const DEMO_STEPS = [
     position: 'top',
   },
   {
-    selector: '.worker-breakdown',
+    selector: '.leaflet-container',
     title: 'Reparto equitativo automático',
-    body: 'Cada técnico con su carga equilibrada. Carlos termina a las 17:15 con 14,8 km — Ana a las 17:20 con 15,6 km. Sin coordinadores calculando a mano: la IA lo resuelve en segundos.',
+    body: 'Mira el mapa: Carlos (azul, zona norte) y Ana (rojo, zona sur) con rutas completamente independientes. Carlos termina a las 17:15 con 14,8 km — Ana a las 17:20 con 15,6 km. La IA lo calcula en segundos.',
     position: 'left',
   },
 ]

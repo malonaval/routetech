@@ -8,7 +8,7 @@ import { callGroqAPI, callGroqAPIMultiWorker } from './utils/groqApi'
 import { geocode, sleep } from './utils/geocode'
 import { geocodeGoogle, getGoogleRoute } from './utils/googleRoutes'
 import WorkerPanel, { WORKER_COLORS } from './components/WorkerPanel'
-import { DEMO_ORIGIN, DEMO_ORIGIN_COORDS, DEMO_STOP_COORDS, DEMO_RESULT, DEMO_MULTI_RESULT, DEMO_ROUTE_POLYLINE } from './utils/demoData'
+import { DEMO_ORIGIN, DEMO_ORIGIN_COORDS, DEMO_STOP_COORDS, DEMO_RESULT, DEMO_MULTI_RESULT, DEMO_ROUTE_POLYLINE, DEMO_WORKERS_MAP_DATA } from './utils/demoData'
 
 const LOADING_LOGS = [
   'Analizando ventanas horarias...',
@@ -40,7 +40,8 @@ export default function App() {
   const [workers,        setWorkers]        = useState([])
   const [activeWorkerId, setActiveWorkerId] = useState(null)
   const [workerResults,  setWorkerResults]  = useState({})
-  const [demoStep, setDemoStep] = useState(null) // null = tour inactive, 0–9 = active step
+  const [demoStep, setDemoStep] = useState(null) // null = tour inactive, 0–10 = active step
+  const [demoWorkersData, setDemoWorkersData] = useState([]) // injected at step 10 for two-route map
 
   const [groqExpanded,   setGroqExpanded]   = useState(() => !(localStorage.getItem('rt_groqkey') || import.meta.env.VITE_GROQ_KEY || ''))
   const [googleExpanded, setGoogleExpanded] = useState(() => !(localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || ''))
@@ -140,16 +141,19 @@ export default function App() {
     if (demoStep === null) return
     setFuelExpanded(demoStep === 4)
     if (demoStep >= 10) {
-      setOriginCoords(DEMO_ORIGIN_COORDS)
-      setStopCoords(DEMO_STOP_COORDS)
+      setOriginCoords(null)           // each worker has its own origin in demoWorkersData
+      setStopCoords([])
       setResult(DEMO_MULTI_RESULT)
-      setRoutePolyline(DEMO_ROUTE_POLYLINE)
+      setRoutePolyline(null)
+      setDemoWorkersData(DEMO_WORKERS_MAP_DATA)
     } else if (demoStep >= 6) {
+      setDemoWorkersData([])
       setOriginCoords(DEMO_ORIGIN_COORDS)
       setStopCoords(DEMO_STOP_COORDS)
       setResult(DEMO_RESULT)
       setRoutePolyline(DEMO_ROUTE_POLYLINE)
     } else {
+      setDemoWorkersData([])
       setOriginCoords(null)
       setStopCoords([])
       setResult(null)
@@ -740,20 +744,22 @@ export default function App() {
         </div>
 
         <RouteMap
-          originAddress={isMultiWorker ? '' : origin}
-          originCoords={isMultiWorker ? null : originCoords}
-          stopCoords={isMultiWorker ? (activeWorkerResult?.stopCoords ?? []) : stopCoords}
-          routePolyline={isMultiWorker ? null : routePolyline}
-          workersData={isMultiWorker
-            ? workers.map((w, i) => ({
-                id: w.id,
-                color: w.color,
-                originCoords: w.originCoords,
-                stopCoords: workerResults[w.id]?.stopCoords ?? [],
-                routePolyline: workerResults[w.id]?.routePolyline ?? null,
-                isActive: w.id === activeWorkerId,
-              }))
-            : []
+          originAddress={isMultiWorker || demoWorkersData.length > 0 ? '' : origin}
+          originCoords={isMultiWorker || demoWorkersData.length > 0 ? null : originCoords}
+          stopCoords={isMultiWorker || demoWorkersData.length > 0 ? [] : stopCoords}
+          routePolyline={isMultiWorker || demoWorkersData.length > 0 ? null : routePolyline}
+          workersData={demoWorkersData.length > 0
+            ? demoWorkersData
+            : isMultiWorker
+              ? workers.map((w, i) => ({
+                  id: w.id,
+                  color: w.color,
+                  originCoords: w.originCoords,
+                  stopCoords: workerResults[w.id]?.stopCoords ?? [],
+                  routePolyline: workerResults[w.id]?.routePolyline ?? null,
+                  isActive: w.id === activeWorkerId,
+                }))
+              : []
           }
           loading={loading}
           loadingLogs={loadingLogs}

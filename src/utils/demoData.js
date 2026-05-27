@@ -62,6 +62,40 @@ export const DEMO_ROUTE_POLYLINE = [
   ...SEQUENCE.map(s => [COORDS[s.ot_id].lat, COORDS[s.ot_id].lng]),
 ]
 
+// Split demo stops between two workers for the multi-route map view
+const CARLOS_STOPS = DEMO_STOP_COORDS.slice(0, 5).map((s, i) => ({
+  ...s, stop: { ...s.stop, position: i + 1 },
+}))
+const ANA_STOPS = DEMO_STOP_COORDS.slice(5).map((s, i) => ({
+  ...s, stop: { ...s.stop, position: i + 1 },
+}))
+
+// Injected as workersData prop to RouteMap at step 10 — shows two colored routes
+export const DEMO_WORKERS_MAP_DATA = [
+  {
+    id: 'Carlos',
+    color: '#1d4e7a',
+    originCoords: DEMO_ORIGIN_COORDS,
+    stopCoords: CARLOS_STOPS,
+    routePolyline: [
+      [DEMO_ORIGIN_COORDS.lat, DEMO_ORIGIN_COORDS.lng],
+      ...CARLOS_STOPS.map(s => [s.coords.lat, s.coords.lng]),
+    ],
+    isActive: true,
+  },
+  {
+    id: 'Ana',
+    color: '#8b2e2e',
+    originCoords: DEMO_ORIGIN_COORDS,
+    stopCoords: ANA_STOPS,
+    routePolyline: [
+      [DEMO_ORIGIN_COORDS.lat, DEMO_ORIGIN_COORDS.lng],
+      ...ANA_STOPS.map(s => [s.coords.lat, s.coords.lng]),
+    ],
+    isActive: false,
+  },
+]
+
 // Pre-baked multi-worker result — injected at step 10 so .worker-breakdown renders
 export const DEMO_MULTI_RESULT = {
   sequence: SEQUENCE,  // reuse single-worker sequence so OrderList doesn't crash
