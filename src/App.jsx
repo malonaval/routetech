@@ -49,15 +49,23 @@ export default function App() {
   const [googleExpanded, setGoogleExpanded] = useState(() => !(localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || ''))
   const [fuelExpanded,   setFuelExpanded]   = useState(false)
 
+  const persistSettings = async (patch) => {
+    try { await supabase.functions.invoke('save-settings', { body: patch }) } catch { /* silencioso */ }
+  }
+
   const saveKey = (storageKey, value, setter) => {
     setter(value)
     localStorage.setItem(storageKey, value)
+    const field = storageKey === 'rt_groqkey' ? 'groq_api_key' : 'google_maps_key'
+    persistSettings({ [field]: value })
   }
 
   const saveNum = (storageKey, value, setter) => {
     const n = parseFloat(value) || 0
     setter(n)
     localStorage.setItem(storageKey, n)
+    const field = storageKey === 'rt_consumption' ? 'consumption' : 'fuel_price'
+    persistSettings({ [field]: n })
   }
 
   const handleOrders = useCallback(newOrders => {
@@ -166,6 +174,49 @@ export default function App() {
   const handleDemoNext  = useCallback(() => setDemoStep(s => s + 1), [])
   const handleDemoPrev  = useCallback(() => setDemoStep(s => Math.max(0, s - 1)), [])
   const handleDemoClose = useCallback(() => setDemoStep(null), [])
+
+  // Cargar settings del usuario desde Supabase al iniciar
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-settings')
+        if (error || !data) return
+        if (data.groq_api_key)        { setGroqKey(data.groq_api_key);        localStorage.setItem('rt_groqkey',    data.groq_api_key);    setGroqExpanded(false) }
+        if (data.google_maps_key)     { setGoogleKey(data.google_maps_key);   localStorage.setItem('rt_googlekey',  data.google_maps_key); setGoogleExpanded(false) }
+        if (data.consumption != null) { setConsumption(data.consumption);     localStorage.setItem('rt_consumption', data.consumption) }
+        if (data.fuel_price  != null) { setFuelPrice(data.fuel_price);        localStorage.setItem('rt_fuel_price',  data.fuel_price) }
+      } catch { /* silencioso — la app funciona con localStorage */ }
+    }
+    loadSettings()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-guardar ruta en Supabase tras cada optimización (no durante demo)
+  useEffect(() => {
+    if (!result || demoStep !== null) return
+    if (!stopCoords.length) return
+
+    const payload = {
+      origin,
+      total_km:       result.total_km ?? result.savings_breakdown?.optimised_km ?? 0,
+      saving_minutes: result.saving_minutes ?? 0,
+      end_time:       result.end_time ?? '',
+      worker_count:   workers.length || 1,
+      stops: stopCoords.map(({ stop, order }) => ({
+        position:       stop.position,
+        client_name:    order.cliente    ?? '',
+        client_address: order.direccion  ?? '',
+        client_phone:   order.telefono   ?? '',
+        duration_min:   order.duracion   ?? 0,
+        window_type:    order.ventana_tipo   ?? 'flexible',
+        window_start:   order.ventana_inicio ?? '',
+        window_end:     order.ventana_fin    ?? '',
+        arrival_time:   stop.arrival_time    ?? '',
+        travel_minutes: stop.travel_minutes  ?? 0,
+      })),
+    }
+
+    supabase.functions.invoke('save-route', { body: payload }).catch(() => {})
+  }, [result]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const navigate = useNavigate()
 
@@ -470,6 +521,9 @@ export default function App() {
         <div className="header-badge">Optimización de rutas · IA + Tráfico real</div>
         <button className="btn-demo-start" onClick={handleDemoStart}>
           ▶ Demo
+        </button>
+        <button className="btn-history" onClick={() => navigate('/historial')} title="Ver historial de rutas">
+          Historial
         </button>
         <button
           className="btn-logout"
