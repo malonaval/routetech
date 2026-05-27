@@ -3,9 +3,10 @@ import { Key, AlertTriangle, Map, Circle, LocateFixed, Fuel } from 'lucide-react
 import CsvUpload from './components/CsvUpload'
 import OrderList from './components/OrderList'
 import RouteMap from './components/RouteMap'
-import { callGroqAPI } from './utils/groqApi'
+import { callGroqAPI, callGroqAPIMultiWorker } from './utils/groqApi'
 import { geocode, sleep } from './utils/geocode'
 import { geocodeGoogle, getGoogleRoute } from './utils/googleRoutes'
+import WorkerPanel, { WORKER_COLORS } from './components/WorkerPanel'
 
 const LOADING_LOGS = [
   'Analizando ventanas horarias...',
@@ -32,6 +33,12 @@ export default function App() {
   const [routePolyline, setRoutePolyline] = useState(null) // [[lat,lng],...] de Google
   const [highlightedId, setHighlightedId] = useState(null)
   const [pendingEdits, setPendingEdits] = useState({}) // { [orderId]: { ventana_tipo, ventana_inicio, ventana_fin } }
+
+  // ── Multi-worker state ──
+  const [workers,        setWorkers]        = useState([])
+  const [activeWorkerId, setActiveWorkerId] = useState(null)
+  const [workerResults,  setWorkerResults]  = useState({})
+
   const [groqExpanded,   setGroqExpanded]   = useState(() => !(localStorage.getItem('rt_groqkey') || import.meta.env.VITE_GROQ_KEY || ''))
   const [googleExpanded, setGoogleExpanded] = useState(() => !(localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || ''))
 
@@ -79,6 +86,38 @@ export default function App() {
     setResult(null)
     setStopCoords([])
     setRoutePolyline(null)
+  }, [])
+
+  const handleWorkersLoaded = useCallback(newWorkers => {
+    const colored = newWorkers.map((w, i) => ({
+      ...w,
+      origin: '',
+      originCoords: null,
+      color: WORKER_COLORS[i % WORKER_COLORS.length],
+    }))
+    setWorkers(colored)
+    setActiveWorkerId(colored[0]?.id ?? null)
+    setWorkerResults({})
+    // Clear single-worker state
+    setOrders([])
+    setResult(null)
+    setStopCoords([])
+    setOriginCoords(null)
+    setRoutePolyline(null)
+    setError(null)
+    setPendingEdits({})
+  }, [])
+
+  const handleWorkerOriginChange = useCallback((workerId, value) => {
+    setWorkers(prev => prev.map(w => w.id === workerId ? { ...w, origin: value } : w))
+  }, [])
+
+  const handleWorkerUseMyLocation = useCallback(workerId => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(pos => {
+      const coords = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`
+      setWorkers(prev => prev.map(w => w.id === workerId ? { ...w, origin: coords } : w))
+    })
   }, [])
 
   // Geocodifica usando Google si hay key, si no usa Nominatim
@@ -169,6 +208,158 @@ export default function App() {
     }
   }
 
+  const handleOptimizeMulti = async () => {
+    if (!groqKey || !workers.length) return
+    if (workers.some(w => !w.origin.trim())) {
+      setError('⚠ Configura el punto de inicio de cada trabajador')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    setWorkerResults({})
+    setLoadingLogs([])
+
+    let logIdx = 0
+    const multiLogs = [
+      'Analizando cargas de trabajo...',
+      'Reasignando OTs con IA...',
+      'Geocodificando direcciones...',
+      'Calculando rutas reales con tráfico...',
+    ]
+    const logTimer = setInterval(() => {
+      if (logIdx < multiLogs.length) {
+        setLoadingLogs(prev => [...prev, multiLogs[logIdx++]])
+      }
+    }, 800)
+
+    try {
+      // 1 · Apply pending edits to active worker's orders
+      const mergedWorkers = workers.map(w => ({
+        ...w,
+        orders: w.orders.map(o => pendingEdits[o.id] ? { ...o, ...pendingEdits[o.id] } : o),
+      }))
+
+      // 2 · AI optimizes and reassigns
+      const aiResult = await callGroqAPIMultiWorker(groqKey, mergedWorkers)
+
+      // 3 · Build a flat map of all orders by id (across all workers)
+      const allOrdersById = {}
+      mergedWorkers.forEach(w => w.orders.forEach(o => { allOrdersById[o.id] = o }))
+
+      // 4 · Geocode all origins in parallel
+      const originCoordsList = await Promise.all(
+        mergedWorkers.map(w => resolveCoords(w.origin.trim()))
+      )
+
+      // 5 · Collect all unique addresses to geocode
+      const allAddresses = {}
+      aiResult.workers.forEach(wr => {
+        wr.sequence.forEach(s => {
+          const order = allOrdersById[s.ot_id]
+          if (order) allAddresses[order.id] = order.direccion
+        })
+      })
+      const geocoded = {}
+      await Promise.all(
+        Object.entries(allAddresses).map(async ([id, addr]) => {
+          geocoded[id] = await resolveCoords(addr)
+        })
+      )
+
+      // 6 · Build per-worker stop lists
+      const workerStops = {}
+      aiResult.workers.forEach((wr, idx) => {
+        const stops = wr.sequence
+          .map(s => {
+            const order = allOrdersById[s.ot_id]
+            return order ? { stop: s, order, coords: geocoded[order.id] ?? null, googleLeg: null } : null
+          })
+          .filter(Boolean)
+        workerStops[wr.trabajador] = { stops, originCoords: originCoordsList[idx] }
+      })
+
+      // 7 · Update workers with reassigned orders and persist edits
+      const updatedWorkers = mergedWorkers.map(w => {
+        const wrResult = aiResult.workers.find(r => r.trabajador === w.id)
+        if (!wrResult) return w
+        const reassignedOrders = wrResult.sequence
+          .map(s => allOrdersById[s.ot_id])
+          .filter(Boolean)
+        return { ...w, orders: reassignedOrders, originCoords: workerStops[w.id]?.originCoords ?? null }
+      })
+      setWorkers(updatedWorkers)
+      setPendingEdits({})
+
+      // 8 · Set initial workerResults (without Google legs yet)
+      const initialResults = {}
+      aiResult.workers.forEach(wr => {
+        initialResults[wr.trabajador] = {
+          sequence: wr.sequence,
+          stopCoords: workerStops[wr.trabajador]?.stops ?? [],
+          routePolyline: null,
+          totalKm: wr.total_km,
+          totalMins: wr.total_mins_estimated,
+          endTime: wr.end_time,
+          savingMinutes: wr.saving_minutes,
+        }
+      })
+      setWorkerResults(initialResults)
+
+      // Store global AI result for header stats and results panel
+      setResult({
+        saving_minutes: aiResult.global_saving_minutes,
+        total_km: aiResult.global_km,
+        reasoning: aiResult.reasoning,
+        call_suggestions: aiResult.call_suggestions ?? [],
+        savings_breakdown: aiResult.savings_breakdown,
+        workers: aiResult.workers,
+      })
+
+      // 9 · Google Routes per worker in parallel
+      if (googleKey) {
+        try {
+          const routeResults = await Promise.all(
+            aiResult.workers.map(async wr => {
+              const { stops, originCoords: oCoords } = workerStops[wr.trabajador]
+              if (!oCoords || !stops.length) return { trabajador: wr.trabajador, routeData: null }
+              const routeData = await getGoogleRoute(googleKey, oCoords, stops)
+              return { trabajador: wr.trabajador, routeData }
+            })
+          )
+
+          setWorkerResults(prev => {
+            const next = { ...prev }
+            routeResults.forEach(({ trabajador, routeData }) => {
+              if (!routeData) return
+              const enrichedStops = (next[trabajador]?.stopCoords ?? []).map((s, i) => ({
+                ...s,
+                googleLeg: routeData.legs[i] ?? null,
+              }))
+              next[trabajador] = {
+                ...next[trabajador],
+                routePolyline: routeData.polylinePoints,
+                stopCoords: enrichedStops,
+                totalKm: routeData.totalKm,
+                totalMins: routeData.totalMins,
+              }
+            })
+            return next
+          })
+        } catch (gErr) {
+          console.warn('Google Routes multi:', gErr.message)
+          setError('⚠ Ruta Google no disponible — mostrando estimación de IA.')
+          setTimeout(() => setError(null), 6000)
+        }
+      }
+    } catch (err) {
+      setError('⚠ ' + err.message)
+    } finally {
+      clearInterval(logTimer)
+      setLoading(false)
+    }
+  }
+
   const useMyLocation = () => {
     if (!navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(pos => {
@@ -176,15 +367,33 @@ export default function App() {
     })
   }
 
-  const displayOrders = useMemo(
-    () =>
-      result
-        ? result.sequence.map(s => orders.find(o => o.id === s.ot_id)).filter(Boolean)
-        : orders,
-    [result, orders]
-  )
+  const isMultiWorker = workers.length > 0
 
-  const canOptimize = Boolean(groqKey) && orders.length > 0 && origin.trim() && !loading
+  const activeWorker = isMultiWorker
+    ? workers.find(w => w.id === activeWorkerId) ?? null
+    : null
+
+  const activeWorkerResult = isMultiWorker && activeWorkerId
+    ? workerResults[activeWorkerId] ?? null
+    : null
+
+  const displayOrders = useMemo(() => {
+    if (isMultiWorker) {
+      if (!activeWorker) return []
+      const seq = activeWorkerResult?.sequence
+      if (seq) {
+        return seq.map(s => activeWorker.orders.find(o => o.id === s.ot_id)).filter(Boolean)
+      }
+      return activeWorker.orders
+    }
+    return result
+      ? result.sequence?.map(s => orders.find(o => o.id === s.ot_id)).filter(Boolean) ?? orders
+      : orders
+  }, [isMultiWorker, activeWorker, activeWorkerResult, result, orders])
+
+  const canOptimize = isMultiWorker
+    ? Boolean(groqKey) && workers.length > 0 && workers.every(w => w.origin.trim()) && !loading
+    : Boolean(groqKey) && orders.length > 0 && origin.trim() && !loading
 
   return (
     <>
@@ -196,22 +405,28 @@ export default function App() {
         {result && (
           <div className="header-stats">
             <div className="hstat">
-              <div className="hstat-val">{result.saving_minutes ?? '—'}</div>
+              <div className="hstat-val">{result.saving_minutes ?? result.global_saving_minutes ?? '—'}</div>
               <div className="hstat-lbl">Min ahorrados</div>
             </div>
             <div className="hstat">
               <div className="hstat-val">{result.total_km != null ? `${result.total_km} km` : '—'}</div>
-              <div className="hstat-lbl">{routePolyline ? 'KM reales' : 'KM estimados'}</div>
+              <div className="hstat-lbl">{isMultiWorker ? 'KM totales' : (routePolyline ? 'KM reales' : 'KM estimados')}</div>
             </div>
-            <div className="hstat">
-              <div className="hstat-val">{result.end_time ?? '—'}</div>
-              <div className="hstat-lbl">Fin jornada</div>
-            </div>
-            {routePolyline && (
+            {!isMultiWorker && (
+              <div className="hstat">
+                <div className="hstat-val">{result.end_time ?? '—'}</div>
+                <div className="hstat-lbl">Fin jornada</div>
+              </div>
+            )}
+            {isMultiWorker && (
+              <div className="hstat">
+                <div className="hstat-val">{workers.length}</div>
+                <div className="hstat-lbl">Trabajadores</div>
+              </div>
+            )}
+            {(routePolyline || Object.values(workerResults).some(r => r.routePolyline)) && (
               <div className="hstat" style={{ borderLeft: '1px solid var(--border)' }}>
-                <div className="hstat-val" style={{ fontSize: '13px', color: 'var(--blue)' }}>
-                  Google Maps
-                </div>
+                <div className="hstat-val" style={{ fontSize: '13px', color: 'var(--blue)' }}>Google Maps</div>
                 <div className="hstat-lbl">Ruta con tráfico</div>
               </div>
             )}
@@ -353,71 +568,127 @@ export default function App() {
           </div>
 
           {/* ── CSV Upload ── */}
-          <CsvUpload onOrdersLoaded={handleOrders} hasOrders={orders.length > 0} orderCount={orders.length} />
+          <CsvUpload
+            onOrdersLoaded={handleOrders}
+            onWorkersLoaded={handleWorkersLoaded}
+            hasOrders={orders.length > 0 || workers.length > 0}
+            orderCount={isMultiWorker
+              ? workers.reduce((s, w) => s + w.orders.length, 0)
+              : orders.length}
+          />
 
-          {orders.length > 0 && (
+          {isMultiWorker ? (
             <>
-              {/* ── Punto de inicio ── */}
-              <div className="panel-section">
-                <div className="section-label">
-                  <div className="step-dot">2</div>
-                  Punto de inicio
-                </div>
-                <div className="origin-row">
-                  <input
-                    className="origin-input"
-                    value={origin}
-                    onChange={e => setOrigin(e.target.value)}
-                    placeholder="Ej: Puerta del Sol, Madrid"
-                  />
-                  <button className="loc-btn" onClick={useMyLocation} title="Usar ubicación actual">
-                    <LocateFixed size={14} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-
-              <OrderList
-                orders={displayOrders}
-                result={result}
-                stopCoords={stopCoords}
-                highlightedId={highlightedId}
-                onFocusStop={handleFocusStop}
-                pendingEdits={pendingEdits}
-                onEditOrder={handleEditOrder}
-                onDeleteOrder={handleDeleteOrder}
+              <WorkerPanel
+                workers={workers}
+                activeWorkerId={activeWorkerId}
+                onSelectWorker={setActiveWorkerId}
+                onOriginChange={handleWorkerOriginChange}
+                onUseMyLocation={handleWorkerUseMyLocation}
               />
-
+              {activeWorker && (
+                <OrderList
+                  orders={displayOrders}
+                  result={activeWorkerResult ? { sequence: activeWorkerResult.sequence } : null}
+                  stopCoords={activeWorkerResult?.stopCoords ?? []}
+                  highlightedId={highlightedId}
+                  onFocusStop={handleFocusStop}
+                  pendingEdits={pendingEdits}
+                  onEditOrder={handleEditOrder}
+                  onDeleteOrder={handleDeleteOrder}
+                />
+              )}
               <div className="opt-wrap">
-                {Object.keys(pendingEdits).length > 0 && (
-                  <div className="pending-banner">
-                    {Object.keys(pendingEdits).length} orden{Object.keys(pendingEdits).length > 1 ? 'es' : ''} modificada{Object.keys(pendingEdits).length > 1 ? 's' : ''}
-                    <button className="pending-clear" onClick={handleClearEdits}>Deshacer</button>
-                  </div>
-                )}
                 <button
-                  className={`btn-optimize${Object.keys(pendingEdits).length > 0 ? ' btn-recalculate' : ''}`}
-                  onClick={handleOptimize}
+                  className="btn-optimize"
+                  onClick={handleOptimizeMulti}
                   disabled={!canOptimize}
                 >
-                  {Object.keys(pendingEdits).length > 0 ? 'Recalcular con cambios' : 'Calcular ruta óptima'}
+                  Optimizar todas las rutas
                   <span className="btn-sub">
                     {!groqKey
                       ? 'Configura tu Groq API Key primero'
-                      : googleKey
-                      ? 'IA + Google Maps con tráfico real'
-                      : 'IA · estimación sin tráfico real'}
+                      : `${workers.length} trabajadores · IA + tráfico real`}
                   </span>
                 </button>
               </div>
             </>
+          ) : (
+            orders.length > 0 && (
+              <>
+                {/* ── Punto de inicio ── */}
+                <div className="panel-section">
+                  <div className="section-label">
+                    <div className="step-dot">2</div>
+                    Punto de inicio
+                  </div>
+                  <div className="origin-row">
+                    <input
+                      className="origin-input"
+                      value={origin}
+                      onChange={e => setOrigin(e.target.value)}
+                      placeholder="Ej: Puerta del Sol, Madrid"
+                    />
+                    <button className="loc-btn" onClick={useMyLocation} title="Usar ubicación actual">
+                      <LocateFixed size={14} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </div>
+
+                <OrderList
+                  orders={displayOrders}
+                  result={result}
+                  stopCoords={stopCoords}
+                  highlightedId={highlightedId}
+                  onFocusStop={handleFocusStop}
+                  pendingEdits={pendingEdits}
+                  onEditOrder={handleEditOrder}
+                  onDeleteOrder={handleDeleteOrder}
+                />
+
+                <div className="opt-wrap">
+                  {Object.keys(pendingEdits).length > 0 && (
+                    <div className="pending-banner">
+                      {Object.keys(pendingEdits).length} orden{Object.keys(pendingEdits).length > 1 ? 'es' : ''} modificada{Object.keys(pendingEdits).length > 1 ? 's' : ''}
+                      <button className="pending-clear" onClick={handleClearEdits}>Deshacer</button>
+                    </div>
+                  )}
+                  <button
+                    className={`btn-optimize${Object.keys(pendingEdits).length > 0 ? ' btn-recalculate' : ''}`}
+                    onClick={handleOptimize}
+                    disabled={!canOptimize}
+                  >
+                    {Object.keys(pendingEdits).length > 0 ? 'Recalcular con cambios' : 'Calcular ruta óptima'}
+                    <span className="btn-sub">
+                      {!groqKey
+                        ? 'Configura tu Groq API Key primero'
+                        : googleKey
+                        ? 'IA + Google Maps con tráfico real'
+                        : 'IA · estimación sin tráfico real'}
+                    </span>
+                  </button>
+                </div>
+              </>
+            )
           )}
         </div>
 
         <RouteMap
-          originAddress={origin}
-          originCoords={originCoords}
-          stopCoords={stopCoords}
-          routePolyline={routePolyline}
+          originAddress={isMultiWorker ? '' : origin}
+          originCoords={isMultiWorker ? null : originCoords}
+          stopCoords={isMultiWorker ? (activeWorkerResult?.stopCoords ?? []) : stopCoords}
+          routePolyline={isMultiWorker ? null : routePolyline}
+          workersData={isMultiWorker
+            ? workers.map((w, i) => ({
+                id: w.id,
+                color: w.color,
+                originCoords: w.originCoords,
+                stopCoords: workerResults[w.id]?.stopCoords ?? [],
+                routePolyline: workerResults[w.id]?.routePolyline ?? null,
+                isActive: w.id === activeWorkerId,
+              }))
+            : []
+          }
           loading={loading}
           loadingLogs={loadingLogs}
           error={error}
