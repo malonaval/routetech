@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { Key, AlertTriangle, Map, Circle, LocateFixed, Fuel } from 'lucide-react'
-import CsvUpload from './components/CsvUpload'
+import CsvUpload, { DEMO_ORDERS_CENTRO } from './components/CsvUpload'
+import DemoTour from './components/DemoTour'
 import OrderList from './components/OrderList'
 import RouteMap from './components/RouteMap'
 import { callGroqAPI, callGroqAPIMultiWorker } from './utils/groqApi'
@@ -38,6 +39,7 @@ export default function App() {
   const [workers,        setWorkers]        = useState([])
   const [activeWorkerId, setActiveWorkerId] = useState(null)
   const [workerResults,  setWorkerResults]  = useState({})
+  const [demoStep, setDemoStep] = useState(null) // null = tour inactive, 0–9 = active step
 
   const [groqExpanded,   setGroqExpanded]   = useState(() => !(localStorage.getItem('rt_groqkey') || import.meta.env.VITE_GROQ_KEY || ''))
   const [googleExpanded, setGoogleExpanded] = useState(() => !(localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || ''))
@@ -120,6 +122,16 @@ export default function App() {
     setError(null)
     setPendingEdits({})
   }, [])
+
+  const handleDemoStart = useCallback(() => {
+    handleOrders(DEMO_ORDERS_CENTRO)
+    setOrigin('Puerta del Sol, Madrid')
+    setDemoStep(0)
+  }, [handleOrders])
+
+  const handleDemoNext  = useCallback(() => setDemoStep(s => s + 1), [])
+  const handleDemoPrev  = useCallback(() => setDemoStep(s => Math.max(0, s - 1)), [])
+  const handleDemoClose = useCallback(() => setDemoStep(null), [])
 
   const handleWorkerOriginChange = useCallback((workerId, value) => {
     setWorkers(prev => prev.map(w => w.id === workerId ? { ...w, origin: value } : w))
@@ -415,6 +427,9 @@ export default function App() {
         <div className="logo">RouteTech</div>
         <div className="header-sep" />
         <div className="header-badge">Optimización de rutas · IA + Tráfico real</div>
+        <button className="btn-demo-start" onClick={handleDemoStart}>
+          ▶ Demo
+        </button>
 
         {result && (
           <div className="header-stats">
@@ -714,6 +729,14 @@ export default function App() {
           onFocusStop={handleFocusStop}
         />
       </div>
+      {demoStep !== null && (
+        <DemoTour
+          step={demoStep}
+          onNext={handleDemoNext}
+          onPrev={handleDemoPrev}
+          onClose={handleDemoClose}
+        />
+      )}
     </>
   )
 }
