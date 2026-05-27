@@ -44,6 +44,7 @@ export default function App() {
 
   const [groqExpanded,   setGroqExpanded]   = useState(() => !(localStorage.getItem('rt_groqkey') || import.meta.env.VITE_GROQ_KEY || ''))
   const [googleExpanded, setGoogleExpanded] = useState(() => !(localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || ''))
+  const [fuelExpanded,   setFuelExpanded]   = useState(false)
 
   const saveKey = (storageKey, value, setter) => {
     setter(value)
@@ -565,40 +566,49 @@ export default function App() {
 
           {/* ── Vehículo / Combustible ── */}
           <div className="panel-section">
-            <div className="section-label">
+            <div
+              className="section-label"
+              style={{ cursor: 'pointer', marginBottom: fuelExpanded ? undefined : 0 }}
+              onClick={() => setFuelExpanded(v => !v)}
+            >
               <Fuel size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--muted)' }} />
               Vehículo
+              <span style={{ marginLeft: 'auto', fontSize: '9px', color: 'var(--muted)', letterSpacing: '1px' }}>
+                {fuelExpanded ? 'OCULTAR' : `${consumption} l · ${Number(fuelPrice).toFixed(2)} €/l · CAMBIAR`}
+              </span>
             </div>
-            <div className="fuel-row">
-              <div className="fuel-field">
-                <label className="fuel-label">Consumo</label>
-                <div className="fuel-input-wrap">
-                  <input
-                    type="number"
-                    className="fuel-input"
-                    value={consumption}
-                    min="1" max="30" step="0.5"
-                    onChange={e => { const n = parseFloat(e.target.value); setConsumption(isNaN(n) ? '' : n) }}
-                    onBlur={e => saveNum('rt_consumption', e.target.value, setConsumption)}
-                  />
-                  <span className="fuel-unit">l/100km</span>
+            {fuelExpanded && (
+              <div className="fuel-row">
+                <div className="fuel-field">
+                  <label className="fuel-label">Consumo</label>
+                  <div className="fuel-input-wrap">
+                    <input
+                      type="number"
+                      className="fuel-input"
+                      value={consumption}
+                      min="1" max="30" step="0.5"
+                      onChange={e => { const n = parseFloat(e.target.value); setConsumption(isNaN(n) ? '' : n) }}
+                      onBlur={e => saveNum('rt_consumption', e.target.value, setConsumption)}
+                    />
+                    <span className="fuel-unit">l/100km</span>
+                  </div>
+                </div>
+                <div className="fuel-field">
+                  <label className="fuel-label">Precio</label>
+                  <div className="fuel-input-wrap">
+                    <input
+                      type="number"
+                      className="fuel-input"
+                      value={fuelPrice}
+                      min="0.5" max="5" step="0.01"
+                      onChange={e => { const n = parseFloat(e.target.value); setFuelPrice(isNaN(n) ? '' : n) }}
+                      onBlur={e => saveNum('rt_fuel_price', e.target.value, setFuelPrice)}
+                    />
+                    <span className="fuel-unit">€/l</span>
+                  </div>
                 </div>
               </div>
-              <div className="fuel-field">
-                <label className="fuel-label">Precio</label>
-                <div className="fuel-input-wrap">
-                  <input
-                    type="number"
-                    className="fuel-input"
-                    value={fuelPrice}
-                    min="0.5" max="5" step="0.01"
-                    onChange={e => { const n = parseFloat(e.target.value); setFuelPrice(isNaN(n) ? '' : n) }}
-                    onBlur={e => saveNum('rt_fuel_price', e.target.value, setFuelPrice)}
-                  />
-                  <span className="fuel-unit">€/l</span>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* ── CSV Upload ── */}
