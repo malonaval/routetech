@@ -6,7 +6,7 @@ import { Flag, Car, Navigation, Map, Cpu } from 'lucide-react'
 import ResultsPanel from './ResultsPanel'
 
 function makeIcon(label, type) {
-  const colors = { origin: '#18181b', fixed: '#8b2e2e', flex: '#1d4e7a' }
+  const colors = { origin: '#18181b', fixed: '#b45309', flex: '#0e7490' }
   const color = colors[type] || '#6b6762'
   return L.divIcon({
     className: '',
@@ -26,7 +26,7 @@ function makeIcon(label, type) {
 }
 
 function makeColoredIcon(label, color, isFixed) {
-  const bg = isFixed ? '#8b2e2e' : color
+  const bg = color  // worker color always — fixed/flex shown in popup, not pin color
   return L.divIcon({
     className: '',
     html: `<div style="
@@ -242,7 +242,7 @@ export default function RouteMap({
                       <div style={{ color: '#666', fontSize: '11px' }}>{s.order.direccion}</div>
                       <div style={{ marginTop: '6px', fontSize: '11px' }}>
                         <span style={{
-                          background: isFixed ? '#8b2e2e' : '#1d4e7a',
+                          background: isFixed ? '#b45309' : '#0e7490',
                           color: 'white', borderRadius: '2px', padding: '1px 5px', marginRight: '4px'
                         }}>
                           {isFixed ? 'FIJA' : 'FLEX'}
