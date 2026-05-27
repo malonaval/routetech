@@ -10,7 +10,7 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
   const phoneById = Object.fromEntries(stopCoords.filter(s => s.order?.telefono).map(s => [s.order.id, s.order.telefono]))
 
   const sb = result.savings_breakdown
-  const savedKm   = sb ? (sb.original_estimated_km - sb.optimised_km) : null
+  const savedKm   = sb ? Math.round((sb.original_estimated_km - sb.optimised_km) * 10) / 10 : null
   const savedMins = result.saving_minutes ?? result.global_saving_minutes ?? (sb ? sb.original_estimated_mins - sb.optimised_mins : null)
   const fuelSaved = savedKm != null
     ? ((savedKm * consumption / 100) * fuelPrice).toFixed(2)
