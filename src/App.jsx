@@ -61,6 +61,9 @@ export default function App() {
     setRoutePolyline(null)
     setError(null)
     setPendingEdits({})
+    setWorkers([])
+    setActiveWorkerId(null)
+    setWorkerResults({})
   }, [])
 
   const handleFocusStop = useCallback(id => {
@@ -81,12 +84,22 @@ export default function App() {
   }, [])
 
   const handleDeleteOrder = useCallback(id => {
-    setOrders(prev => prev.filter(o => o.id !== id))
-    setPendingEdits(prev => { const n = { ...prev }; delete n[id]; return n })
+    if (workers.length > 0) {
+      // Multi-worker mode: remove from the active worker's orders
+      setWorkers(prev => prev.map(w =>
+        w.id === activeWorkerId
+          ? { ...w, orders: w.orders.filter(o => o.id !== id) }
+          : w
+      ))
+    } else {
+      // Single-worker mode: remove from orders array
+      setOrders(prev => prev.filter(o => o.id !== id))
+    }
+    setPendingEdits(prev => { const next = { ...prev }; delete next[id]; return next })
     setResult(null)
     setStopCoords([])
     setRoutePolyline(null)
-  }, [])
+  }, [workers, activeWorkerId])
 
   const handleWorkersLoaded = useCallback(newWorkers => {
     const colored = newWorkers.map((w, i) => ({
@@ -286,7 +299,8 @@ export default function App() {
         const reassignedOrders = wrResult.sequence
           .map(s => allOrdersById[s.ot_id])
           .filter(Boolean)
-        return { ...w, orders: reassignedOrders, originCoords: workerStops[w.id]?.originCoords ?? null }
+        // Use wrResult.trabajador as key (same as workerStops key) to avoid id mismatch
+        return { ...w, orders: reassignedOrders, originCoords: workerStops[wrResult.trabajador]?.originCoords ?? null }
       })
       setWorkers(updatedWorkers)
       setPendingEdits({})
@@ -389,7 +403,7 @@ export default function App() {
     return result
       ? result.sequence?.map(s => orders.find(o => o.id === s.ot_id)).filter(Boolean) ?? orders
       : orders
-  }, [isMultiWorker, activeWorker, activeWorkerResult, result, orders])
+  }, [activeWorker, activeWorkerResult, result, orders, workers])
 
   const canOptimize = isMultiWorker
     ? Boolean(groqKey) && workers.length > 0 && workers.every(w => w.origin.trim()) && !loading
