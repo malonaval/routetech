@@ -43,7 +43,7 @@ export default function DemoTour({ step, onNext, onPrev, onClose }) {
   const isWelcome = !current?.selector
   const isFirst   = step === 0
   const isLast    = step === DEMO_STEPS.length - 1
-  const total     = DEMO_STEPS.length - 1  // exclude welcome step from counter
+  const total     = DEMO_STEPS.length       // 10 total steps
 
   useEffect(() => {
     if (step == null || !current) return
@@ -117,9 +117,7 @@ export default function DemoTour({ step, onNext, onPrev, onClose }) {
           style={tipStyle}
           onClick={e => e.stopPropagation()}
         >
-          {!isWelcome && (
-            <div className="demo-tooltip-step">{step} / {total}</div>
-          )}
+          <div className="demo-tooltip-step">{step + 1} / {total}</div>
           <div className="demo-tooltip-title">{current.title}</div>
           <div className="demo-tooltip-body">{current.body}</div>
           <div className="demo-tooltip-actions">
