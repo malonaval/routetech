@@ -920,3 +920,40 @@ header {
 .worker-card .origin-row {
   margin-top: 8px;
 }
+
+/* ─── WORKER BREAKDOWN IN RESULTS ───────────────────────────────────────── */
+.worker-breakdown {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.worker-breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+}
+
+.worker-breakdown-name {
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.worker-breakdown-stat {
+  color: var(--muted2);
+  font-size: 10px;
+  min-width: 40px;
+  text-align: right;
+}
+
+.worker-breakdown-saving {
+  color: #16a34a;
+  font-size: 10px;
+  font-weight: 500;
+  min-width: 48px;
+  text-align: right;
+}

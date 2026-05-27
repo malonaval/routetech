@@ -1,22 +1,28 @@
 import { Map, Cpu, Phone, ChevronRight, Clock, AlertTriangle, PhoneCall } from 'lucide-react'
+import { WORKER_COLORS } from './WorkerPanel'
 
-export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, stopCoords = [] }) {
+export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, stopCoords = [], workersData = [] }) {
   if (!result) return null
 
-  // Index traffic legs and phone numbers by order id
+  const isMultiWorker = Array.isArray(result.workers) && result.workers.length > 0
+
   const legById   = Object.fromEntries(stopCoords.filter(s => s.googleLeg).map(s => [s.order.id, s.googleLeg]))
   const phoneById = Object.fromEntries(stopCoords.filter(s => s.order?.telefono).map(s => [s.order.id, s.order.telefono]))
 
   const sb = result.savings_breakdown
-  const savedKm = sb ? (sb.original_estimated_km - sb.optimised_km) : null
-  const savedMins = result.saving_minutes ?? (sb ? sb.original_estimated_mins - sb.optimised_mins : null)
+  const savedKm   = sb ? (sb.original_estimated_km - sb.optimised_km) : null
+  const savedMins = result.saving_minutes ?? result.global_saving_minutes ?? (sb ? sb.original_estimated_mins - sb.optimised_mins : null)
   const fuelSaved = savedKm != null
     ? ((savedKm * consumption / 100) * fuelPrice).toFixed(2)
     : null
 
+  // Worker color lookup
+  const workerColorById = {}
+  workersData.forEach((w, i) => { workerColorById[w.id] = w.color || WORKER_COLORS[i % WORKER_COLORS.length] })
+
   return (
     <div className="reasoning-card">
-      {/* ── Savings breakdown ── */}
+      {/* ── Savings summary ── */}
       {(savedMins != null || savedKm != null) && (
         <div className="savings-table">
           {savedMins != null && (
@@ -40,15 +46,35 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
         </div>
       )}
 
+      {/* ── Per-worker breakdown ── */}
+      {isMultiWorker && (
+        <div className="worker-breakdown">
+          {result.workers.map((wr, i) => {
+            const color = workerColorById[wr.trabajador] || WORKER_COLORS[i % WORKER_COLORS.length]
+            const wData = workersData.find(w => w.id === wr.trabajador)
+            const realKm = wData?.totalKm ?? wr.total_km
+            return (
+              <div key={wr.trabajador} className="worker-breakdown-row">
+                <span className="worker-dot" style={{ background: color }} />
+                <span className="worker-breakdown-name">{wr.trabajador}</span>
+                <span className="worker-breakdown-stat">{wr.end_time}</span>
+                <span className="worker-breakdown-stat">{realKm} km</span>
+                <span className="worker-breakdown-saving">−{wr.saving_minutes} min</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* ── Reasoning ── */}
       <div className="reasoning-title">
-        {hasRealRoute
+        {hasRealRoute || workersData.some(w => w.routePolyline)
           ? <><Map size={13} strokeWidth={1.5} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />Ruta real · Google Maps</>
           : <><Cpu size={13} strokeWidth={1.5} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />Razonamiento IA</>
         }
       </div>
       <div className="reasoning-text">{result.reasoning}</div>
-      {hasRealRoute && (
+      {(hasRealRoute || workersData.some(w => w.routePolyline)) && (
         <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.5px' }}>
           Tiempos calculados con tráfico en tiempo real
         </div>
@@ -63,18 +89,16 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
           </div>
           {result.call_suggestions.map(s => {
             const leg = legById[s.ot_id]
-            const trafficDelay = leg?.hasRealTraffic
-              ? leg.durationMins - leg.durationNoTrafficMins
-              : 0
+            const trafficDelay = leg?.hasRealTraffic ? leg.durationMins - leg.durationNoTrafficMins : 0
             const phone = phoneById[s.ot_id]
+            const workerColor = s.trabajador ? (workerColorById[s.trabajador] || null) : null
             return (
-              <div
-                key={s.ot_id}
-                className="call-row"
-                onClick={() => onFocusStop?.(s.ot_id)}
-              >
+              <div key={s.ot_id} className="call-row" onClick={() => onFocusStop?.(s.ot_id)}>
                 <div className="call-info">
-                  <div className="call-client">{s.cliente}</div>
+                  <div className="call-client">
+                    {workerColor && <span className="worker-dot" style={{ background: workerColor, marginRight: '4px' }} />}
+                    {s.cliente}
+                  </div>
                   <div className="call-window">
                     Ahora: {s.current_window}
                     {s.suggested_time && (
@@ -94,12 +118,7 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
                 </div>
                 <div className="call-saving">
                   {phone && (
-                    <a
-                      href={`tel:${phone.replace(/\s/g, '')}`}
-                      className="call-phone-btn"
-                      title={phone}
-                      onClick={e => e.stopPropagation()}
-                    >
+                    <a href={`tel:${phone.replace(/\s/g, '')}`} className="call-phone-btn" title={phone} onClick={e => e.stopPropagation()}>
                       <PhoneCall size={10} strokeWidth={2} />
                       Llamar
                     </a>
