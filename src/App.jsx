@@ -259,6 +259,16 @@ export default function App() {
     return geocode(address)
   }
 
+  // Distancia en km entre dos coordenadas (fórmula haversine)
+  const haversineKm = (a, b) => {
+    const R = 6371
+    const dLat = (b.lat - a.lat) * Math.PI / 180
+    const dLng = (b.lng - a.lng) * Math.PI / 180
+    const h = Math.sin(dLat / 2) ** 2 +
+      Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+    return R * 2 * Math.asin(Math.sqrt(h))
+  }
+
   const handleOptimize = async () => {
     if (!origin.trim() || !orders.length || !groqKey) return
 
@@ -278,30 +288,46 @@ export default function App() {
     }, 800)
 
     try {
-      // 1 · IA optimiza la secuencia
       const mergedOrders = orders.map(o =>
         pendingEdits[o.id] ? { ...o, ...pendingEdits[o.id] } : o
       )
-      const aiResult = await callGroqAPI(groqKey, origin.trim(), mergedOrders)
 
-      // 2 · Geocodificar origen
+      // 1 · Geocodificar origen y todas las paradas ANTES de llamar a Groq
+      //     así podemos calcular distancias reales y pasárselas al modelo
       const oCoords = await resolveCoords(origin.trim())
       setOriginCoords(oCoords)
 
-      // 3 · Geocodificar todas las paradas en secuencia optimizada
-      const stops = []
-      for (const stop of aiResult.sequence) {
-        const order = orders.find(o => o.id === stop.ot_id)
-        if (order) {
-          const coords = await resolveCoords(order.direccion)
-          stops.push({ stop, order, coords, googleLeg: null })
-          if (!googleKey) await sleep(250) // Nominatim rate-limit solo si no usamos Google
+      const coordsMap = {}
+      for (const order of mergedOrders) {
+        const c = await resolveCoords(order.direccion)
+        coordsMap[order.id] = c
+        if (!googleKey) await sleep(250) // Nominatim rate-limit
+      }
+
+      // 2 · Distancias reales desde el origen a cada parada
+      const distancesKm = {}
+      if (oCoords) {
+        for (const order of mergedOrders) {
+          const c = coordsMap[order.id]
+          if (c) distancesKm[order.id] = haversineKm(oCoords, c)
         }
       }
 
+      // 3 · IA optimiza la secuencia con distancias reales
+      const aiResult = await callGroqAPI(groqKey, origin.trim(), mergedOrders, distancesKm)
+
+      // 4 · Construir stopCoords usando las coords ya geocodificadas
+      const stops = aiResult.sequence
+        .map(stop => {
+          const order = mergedOrders.find(o => o.id === stop.ot_id)
+          if (!order) return null
+          return { stop, order, coords: coordsMap[order.id] ?? null, googleLeg: null }
+        })
+        .filter(Boolean)
+
       setStopCoords(stops)
       setResult(aiResult)
-      setOrders(mergedOrders)   // aplicar edits permanentemente
+      setOrders(mergedOrders)
       setPendingEdits({})
 
       // 4 · Ruta real con tráfico (solo si hay key de Google)

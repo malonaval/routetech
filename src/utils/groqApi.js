@@ -1,13 +1,17 @@
 const MODEL = 'llama-3.3-70b-versatile'
 
-export async function callGroqAPI(apiKey, origin, orders) {
+export async function callGroqAPI(apiKey, origin, orders, distancesKm = {}) {
   const ordersText = orders
-    .map(
-      (o, i) =>
+    .map((o, i) => {
+      const dist = distancesKm[o.id]
+      const distStr = dist != null ? ` | Dist_origen:${Math.round(dist)}km` : ''
+      return (
         `${i + 1}. ID:${o.id} | Cliente:${o.cliente} | Dir:${o.direccion} | ` +
         `Dur:${o.duracion}min | Ventana:${o.ventana_tipo}` +
-        (o.ventana_inicio ? ` (${o.ventana_inicio}–${o.ventana_fin})` : '')
-    )
+        (o.ventana_inicio ? ` (${o.ventana_inicio}–${o.ventana_fin})` : '') +
+        distStr
+      )
+    })
     .join('\n')
 
   const prompt = `Ordena estas órdenes de trabajo minimizando tiempo total de desplazamiento, respetando ventanas fijas.
@@ -20,7 +24,7 @@ ${ordersText}
 REGLAS:
 - Ventanas "fija": cumplir en la franja exacta
 - Ventanas "flexible": reordenar libremente para minimizar km totales
-- CRÍTICO: Si hay paradas FLEXIBLE cercanas al punto de inicio, visítalas PRIMERO antes de ir a la primera parada fija, siempre que no impida llegar a tiempo a la ventana fija. Aprovecha el tiempo muerto antes de la primera ventana fija para visitar paradas próximas al origen.
+- CRÍTICO: Cada parada tiene "Dist_origen" en km (distancia real desde el INICIO). Usa estos valores para ordenar: paradas con Dist_origen pequeño deben visitarse lo antes posible. Si una parada flexible tiene Dist_origen < 10km, visítala ANTES de desplazarte a paradas lejanas, siempre que no incumplas una ventana fija.
 - Tiempos de desplazamiento en Madrid: 8-25 min en coche, 5-10 min a pie si <700m
 - Calcula hora de llegada acumulada para cada parada desde las 09:00 en el INICIO
 - saving_minutes = ahorro vs orden original
