@@ -52,13 +52,13 @@ const DEMO_STEPS = [
   {
     selector: '[data-tour="multi-demo"]',
     title: 'Para equipos completos',
-    body: '¿Varios técnicos? Carga todas sus órdenes juntas y la IA las distribuye para que todos terminen a la vez.',
+    body: 'Carga las órdenes de todos tus técnicos juntas y la IA optimiza la ruta de cada uno: mínimos kilómetros, ventanas horarias respetadas y reparto equitativo de trabajo.',
     position: 'top',
   },
   {
     selector: '.worker-breakdown',
-    title: 'Balanceo automático de carga',
-    body: 'Sin jefes de equipo calculando a mano — la IA reasigna órdenes entre trabajadores para equilibrar la jornada.',
+    title: 'Reparto equitativo automático',
+    body: 'Sin hojas de cálculo ni coordinadores asignando visitas a mano. La IA redistribuye las órdenes para que todos los técnicos terminen a la misma hora y nadie haga kilómetros de más.',
     position: 'left',
   },
 ]
