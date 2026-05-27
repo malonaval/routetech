@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Key, AlertTriangle, Map, Circle, LocateFixed, Fuel } from 'lucide-react'
 import CsvUpload, { DEMO_ORDERS_CENTRO } from './components/CsvUpload'
 import DemoTour from './components/DemoTour'
@@ -126,14 +126,26 @@ export default function App() {
   }, [])
 
   const handleDemoStart = useCallback(() => {
-    handleOrders(DEMO_ORDERS_CENTRO)   // resets state; subsequent setters below override the nulls
+    handleOrders(DEMO_ORDERS_CENTRO)   // load orders and reset all result state
     setOrigin(DEMO_ORIGIN)
-    setOriginCoords(DEMO_ORIGIN_COORDS)
-    setStopCoords(DEMO_STOP_COORDS)
-    setResult(DEMO_RESULT)
-    setRoutePolyline(DEMO_ROUTE_POLYLINE)
     setDemoStep(0)
   }, [handleOrders])
+
+  // Inject pre-baked results when reaching the map step (5+), clear them on earlier steps
+  useEffect(() => {
+    if (demoStep === null) return
+    if (demoStep >= 5) {
+      setOriginCoords(DEMO_ORIGIN_COORDS)
+      setStopCoords(DEMO_STOP_COORDS)
+      setResult(DEMO_RESULT)
+      setRoutePolyline(DEMO_ROUTE_POLYLINE)
+    } else {
+      setOriginCoords(null)
+      setStopCoords([])
+      setResult(null)
+      setRoutePolyline(null)
+    }
+  }, [demoStep])
 
   const handleDemoNext  = useCallback(() => setDemoStep(s => s + 1), [])
   const handleDemoPrev  = useCallback(() => setDemoStep(s => Math.max(0, s - 1)), [])
