@@ -66,6 +66,9 @@ function parseCSVText(text) {
   return orders
 }
 
+// Pre-parsed Madrid Centro demo orders — used by App.jsx for demo tour
+export const DEMO_ORDERS_CENTRO = parseCSVText(DEMO_CSV)
+
 function parseWorkersFromOrders(orders) {
   const map = {}
   orders.forEach(o => {
@@ -176,7 +179,7 @@ export default function CsvUpload({ onOrdersLoaded, onWorkersLoaded, hasOrders, 
               <Zap size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />
               Madrid Norte
             </button>
-            <button className="btn-demo" onClick={loadDemoMulti}>
+            <button className="btn-demo" data-tour="multi-demo" onClick={loadDemoMulti}>
               <Zap size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px' }} />
               2 Trabajadores
             </button>
