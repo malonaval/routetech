@@ -14,7 +14,7 @@ const DEMO_STEPS = [
     position: 'right',
   },
   {
-    selector: '.ot-list',
+    selector: '.ot-scroll',
     title: 'Tus órdenes, al detalle',
     body: 'Cada visita con su duración, cliente y ventana horaria. Puedes editar cualquier dato antes de optimizar.',
     position: 'right',
