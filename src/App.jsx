@@ -8,6 +8,7 @@ import { callGroqAPI, callGroqAPIMultiWorker } from './utils/groqApi'
 import { geocode, sleep } from './utils/geocode'
 import { geocodeGoogle, getGoogleRoute } from './utils/googleRoutes'
 import WorkerPanel, { WORKER_COLORS } from './components/WorkerPanel'
+import { DEMO_ORIGIN, DEMO_ORIGIN_COORDS, DEMO_STOP_COORDS, DEMO_RESULT, DEMO_ROUTE_POLYLINE } from './utils/demoData'
 
 const LOADING_LOGS = [
   'Analizando ventanas horarias...',
@@ -124,8 +125,12 @@ export default function App() {
   }, [])
 
   const handleDemoStart = useCallback(() => {
-    handleOrders(DEMO_ORDERS_CENTRO)
-    setOrigin('Puerta del Sol, Madrid')
+    handleOrders(DEMO_ORDERS_CENTRO)   // resets state; subsequent setters below override the nulls
+    setOrigin(DEMO_ORIGIN)
+    setOriginCoords(DEMO_ORIGIN_COORDS)
+    setStopCoords(DEMO_STOP_COORDS)
+    setResult(DEMO_RESULT)
+    setRoutePolyline(DEMO_ROUTE_POLYLINE)
     setDemoStep(0)
   }, [handleOrders])
 
