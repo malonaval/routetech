@@ -62,6 +62,26 @@ export const DEMO_ROUTE_POLYLINE = [
   ...SEQUENCE.map(s => [COORDS[s.ot_id].lat, COORDS[s.ot_id].lng]),
 ]
 
+// Pre-baked multi-worker result — injected at step 10 so .worker-breakdown renders
+export const DEMO_MULTI_RESULT = {
+  workers: [
+    { trabajador: 'Carlos', sequence: [], end_time: '17:15', total_km: 14.8, saving_minutes: 24 },
+    { trabajador: 'Ana',    sequence: [], end_time: '17:20', total_km: 15.6, saving_minutes: 23 },
+  ],
+  global_saving_minutes: 47,
+  saving_minutes: 47,
+  total_km: 30.4,
+  end_time: '17:20',
+  reasoning: 'Distribución equitativa entre Carlos (zona norte-este) y Ana (zona sur-oeste). Ambos técnicos terminan con una diferencia de solo 5 minutos.',
+  savings_breakdown: {
+    original_estimated_km:   47.2,
+    optimised_km:            30.4,
+    original_estimated_mins: 265,
+    optimised_mins:          218,
+  },
+  call_suggestions: [],
+}
+
 // Pre-baked optimisation result — mirrors the Groq single-worker response shape
 export const DEMO_RESULT = {
   sequence: SEQUENCE,

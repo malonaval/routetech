@@ -26,6 +26,12 @@ const DEMO_STEPS = [
     position: 'right',
   },
   {
+    selector: '[data-tour="fuel-config"]',
+    title: 'Ahorro real en combustible',
+    body: 'Configura el consumo de tu vehículo y el precio de la gasolina. RouteTech calculará automáticamente cuánto dinero ahorras cada día con la ruta optimizada.',
+    position: 'right',
+  },
+  {
     selector: '.btn-optimize',
     title: 'Un clic, ruta perfecta',
     body: 'La IA analiza todas las combinaciones posibles, respeta las ventanas horarias fijas y minimiza los kilómetros.',
@@ -52,13 +58,13 @@ const DEMO_STEPS = [
   {
     selector: '[data-tour="multi-demo"]',
     title: 'Para equipos completos',
-    body: 'Carga las órdenes de todos tus técnicos juntas y la IA optimiza la ruta de cada uno: mínimos kilómetros, ventanas horarias respetadas y reparto equitativo de trabajo.',
+    body: '¿Varios técnicos? Sube un único archivo con todos sus clientes. La IA distribuye automáticamente las órdenes entre técnicos, optimiza la ruta de cada uno y respeta sus horarios individuales.',
     position: 'top',
   },
   {
     selector: '.worker-breakdown',
     title: 'Reparto equitativo automático',
-    body: 'Sin hojas de cálculo ni coordinadores asignando visitas a mano. La IA redistribuye las órdenes para que todos los técnicos terminen a la misma hora y nadie haga kilómetros de más.',
+    body: 'Cada técnico con su carga equilibrada. Carlos termina a las 17:15 con 14,8 km — Ana a las 17:20 con 15,6 km. Sin coordinadores calculando a mano: la IA lo resuelve en segundos.',
     position: 'left',
   },
 ]

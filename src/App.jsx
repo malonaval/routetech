@@ -8,7 +8,7 @@ import { callGroqAPI, callGroqAPIMultiWorker } from './utils/groqApi'
 import { geocode, sleep } from './utils/geocode'
 import { geocodeGoogle, getGoogleRoute } from './utils/googleRoutes'
 import WorkerPanel, { WORKER_COLORS } from './components/WorkerPanel'
-import { DEMO_ORIGIN, DEMO_ORIGIN_COORDS, DEMO_STOP_COORDS, DEMO_RESULT, DEMO_ROUTE_POLYLINE } from './utils/demoData'
+import { DEMO_ORIGIN, DEMO_ORIGIN_COORDS, DEMO_STOP_COORDS, DEMO_RESULT, DEMO_MULTI_RESULT, DEMO_ROUTE_POLYLINE } from './utils/demoData'
 
 const LOADING_LOGS = [
   'Analizando ventanas horarias...',
@@ -131,10 +131,20 @@ export default function App() {
     setDemoStep(0)
   }, [handleOrders])
 
-  // Inject pre-baked results when reaching the map step (5+), clear them on earlier steps
+  // Inject pre-baked results as the tour progresses:
+  //   steps 0-5  → no results (map placeholder, orders loaded)
+  //   steps 6-9  → single-worker results (map + savings + calls)
+  //   step  10   → multi-worker results (.worker-breakdown rendered)
+  // Also auto-expand/collapse the fuel section on step 4.
   useEffect(() => {
     if (demoStep === null) return
-    if (demoStep >= 5) {
+    setFuelExpanded(demoStep === 4)
+    if (demoStep >= 10) {
+      setOriginCoords(DEMO_ORIGIN_COORDS)
+      setStopCoords(DEMO_STOP_COORDS)
+      setResult(DEMO_MULTI_RESULT)
+      setRoutePolyline(DEMO_ROUTE_POLYLINE)
+    } else if (demoStep >= 6) {
       setOriginCoords(DEMO_ORIGIN_COORDS)
       setStopCoords(DEMO_STOP_COORDS)
       setResult(DEMO_RESULT)
@@ -577,7 +587,7 @@ export default function App() {
           </div>
 
           {/* ── Vehículo / Combustible ── */}
-          <div className="panel-section">
+          <div className="panel-section" data-tour="fuel-config">
             <div
               className="section-label"
               style={{ cursor: 'pointer', marginBottom: fuelExpanded ? undefined : 0 }}
