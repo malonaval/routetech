@@ -1,7 +1,7 @@
 import { Map, Cpu, Phone, ChevronRight, Clock, AlertTriangle, PhoneCall } from 'lucide-react'
 import { WORKER_COLORS } from './WorkerPanel'
 
-export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, stopCoords = [], workersData = [] }) {
+export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, onProposeTime, stopCoords = [], workersData = [] }) {
   if (!result) return null
 
   const isMultiWorker = Array.isArray(result.workers) && result.workers.length > 0
@@ -102,10 +102,14 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
                   <div className="call-window">
                     Ahora: {s.current_window}
                     {s.suggested_time && (
-                      <span className="call-suggested">
+                      <button
+                        className="call-suggested call-suggested-btn"
+                        title="Aplicar esta hora y recalcular"
+                        onClick={e => { e.stopPropagation(); onProposeTime?.(s.ot_id, s.suggested_time) }}
+                      >
                         <Clock size={9} strokeWidth={2} />
                         Proponer: {s.suggested_time}
-                      </span>
+                      </button>
                     )}
                   </div>
                   {trafficDelay > 3 && (

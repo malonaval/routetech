@@ -98,6 +98,19 @@ export default function App() {
     setPendingEdits({})
   }, [])
 
+  // Aplica el tiempo sugerido de una llamada recomendada como edición pendiente
+  const handleProposeTime = useCallback((otId, suggestedTime) => {
+    setPendingEdits(prev => ({
+      ...prev,
+      [otId]: {
+        ...(prev[otId] || {}),
+        ventana_tipo:    'fija',
+        ventana_inicio:  suggestedTime,
+        ventana_fin:     suggestedTime,
+      },
+    }))
+  }, [])
+
   const handleDeleteOrder = useCallback(id => {
     if (workers.length > 0) {
       // Multi-worker mode: remove from the active worker's orders
@@ -840,6 +853,7 @@ export default function App() {
           consumption={consumption}
           fuelPrice={fuelPrice}
           onFocusStop={handleFocusStop}
+          onProposeTime={handleProposeTime}
         />
       </div>
       {demoStep !== null && (

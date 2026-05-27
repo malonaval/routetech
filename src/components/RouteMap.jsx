@@ -71,6 +71,7 @@ export default function RouteMap({
   consumption,
   fuelPrice,
   onFocusStop,
+  onProposeTime,
 }) {
   const bounds = useMemo(() => {
     const pts = []
@@ -299,7 +300,7 @@ export default function RouteMap({
       {error && <div className="error-toast">{error}</div>}
 
       {/* Razonamiento IA */}
-      <ResultsPanel result={result} hasRealRoute={!!routePolyline} consumption={consumption} fuelPrice={fuelPrice} onFocusStop={onFocusStop} stopCoords={stopCoords} workersData={workersData} />
+      <ResultsPanel result={result} hasRealRoute={!!routePolyline} consumption={consumption} fuelPrice={fuelPrice} onFocusStop={onFocusStop} onProposeTime={onProposeTime} stopCoords={stopCoords} workersData={workersData} />
     </div>
   )
 }

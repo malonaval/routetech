@@ -19,10 +19,12 @@ ${ordersText}
 
 REGLAS:
 - Ventanas "fija": cumplir en la franja exacta
-- Ventanas "flexible": reordenar libremente
+- Ventanas "flexible": reordenar libremente para minimizar km totales
+- CRÍTICO: Si hay paradas FLEXIBLE cercanas al punto de inicio, visítalas PRIMERO antes de ir a la primera parada fija, siempre que no impida llegar a tiempo a la ventana fija. Aprovecha el tiempo muerto antes de la primera ventana fija para visitar paradas próximas al origen.
 - Tiempos de desplazamiento en Madrid: 8-25 min en coche, 5-10 min a pie si <700m
-- Calcula hora de llegada acumulada para cada parada
+- Calcula hora de llegada acumulada para cada parada desde las 09:00 en el INICIO
 - saving_minutes = ahorro vs orden original
+- El recorrido debe ser geográficamente eficiente: nunca volver sobre tus pasos innecesariamente
 
 Devuelve ÚNICAMENTE este JSON (sin texto adicional):
 {
