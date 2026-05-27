@@ -10,7 +10,7 @@ const DEMO_STEPS = [
   {
     selector: '.drop-zone',
     title: 'Importa tus órdenes',
-    body: 'Carga un Excel o CSV con tus órdenes del día. Sin formación especial — el mismo formato que ya usas.',
+    body: 'Carga el Excel o CSV que ya tienes: cliente, dirección, duración y ventana horaria. Sin cambiar tu forma de trabajar — RouteTech se adapta a ti.',
     position: 'right',
   },
   {

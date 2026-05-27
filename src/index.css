@@ -290,8 +290,8 @@ header {
   line-height: 1;
   padding-top: 2px;
 }
-.ot-pos.fixed-col { color: var(--accent2); }
-.ot-pos.flex-col  { color: var(--blue); }
+.ot-pos.fixed-col { color: #b45309; }
+.ot-pos.flex-col  { color: #0e7490; }
 
 .ot-body { flex: 1; min-width: 0; }
 .ot-client {
@@ -321,8 +321,8 @@ header {
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-.tag-fixed { background: transparent; color: var(--accent2); border: 1px solid #d4a0a0; }
-.tag-flex  { background: transparent; color: var(--blue);    border: 1px solid #a0bdd4; }
+.tag-fixed { background: transparent; color: #b45309; border: 1px solid #f0c060; }
+.tag-flex  { background: transparent; color: #0e7490; border: 1px solid #7dd3e0; }
 .tag-plain { background: transparent; color: var(--muted2);  border: 1px solid var(--border); }
 
 .ot-time {
@@ -370,7 +370,7 @@ header {
   color: white;
 }
 
-.ot-win { font-size: 9px; color: var(--accent2); margin-top: 0; letter-spacing: 0.5px; }
+.ot-win { font-size: 9px; color: #b45309; margin-top: 0; letter-spacing: 0.5px; }
 
 /* ─── OPTIMIZE BUTTON ────────────────────────────────────────────────────── */
 .opt-wrap {
