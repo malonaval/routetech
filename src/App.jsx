@@ -39,6 +39,7 @@ export default function App() {
   const [originalOrders, setOriginalOrders] = useState([]) // órdenes en orden CSV, para comparativa
   const [highlightedId, setHighlightedId] = useState(null)
   const [pendingEdits, setPendingEdits] = useState({}) // { [orderId]: { ventana_tipo, ventana_inicio, ventana_fin } }
+  const [dismissedSuggestions, setDismissedSuggestions] = useState(new Set()) // ot_ids propuestos por el usuario — no volver a sugerir
 
   // ── Multi-worker state ──
   const [workers,        setWorkers]        = useState([])
@@ -80,6 +81,7 @@ export default function App() {
     setOriginalOrders([])
     setError(null)
     setPendingEdits({})
+    setDismissedSuggestions(new Set())
     setWorkers([])
     setActiveWorkerId(null)
     setWorkerResults({})
@@ -113,7 +115,9 @@ export default function App() {
         ventana_fin:     suggestedTime,
       },
     }))
-    // Quitar la sugerencia de la lista — ya fue atendida, no tiene sentido seguir mostrándola
+    // Marcar como descartada — no volver a sugerir aunque se recalcule
+    setDismissedSuggestions(prev => new Set([...prev, otId]))
+    // Quitar de la lista actual inmediatamente
     setResult(prev => prev ? {
       ...prev,
       call_suggestions: (prev.call_suggestions || []).filter(s => s.ot_id !== otId),
@@ -299,10 +303,6 @@ export default function App() {
     }, 800)
 
     try {
-      // Guardar qué órdenes fueron editadas manualmente por el usuario
-      // para no volver a sugerirlas en call_suggestions tras el recálculo
-      const userEditedIds = new Set(Object.keys(pendingEdits))
-
       const mergedOrders = orders.map(o =>
         pendingEdits[o.id] ? { ...o, ...pendingEdits[o.id] } : o
       )
@@ -339,11 +339,11 @@ export default function App() {
       // 4 · IA optimiza la secuencia con distancias reales
       const aiResult = await callGroqAPI(groqKey, origin.trim(), mergedOrders, distancesKm)
 
-      // Filtrar sugerencias de órdenes que el usuario ya editó manualmente —
-      // el usuario tomó la decisión, no tiene sentido volver a proponerles cambio
-      if (userEditedIds.size > 0 && aiResult.call_suggestions) {
+      // Filtrar sugerencias de órdenes que el usuario ya aceptó en sesión —
+      // dismissedSuggestions persiste entre recálculos hasta que se cargan nuevas órdenes
+      if (dismissedSuggestions.size > 0 && aiResult.call_suggestions) {
         aiResult.call_suggestions = aiResult.call_suggestions.filter(
-          s => !userEditedIds.has(s.ot_id)
+          s => !dismissedSuggestions.has(s.ot_id)
         )
       }
 
