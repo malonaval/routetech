@@ -113,6 +113,11 @@ export default function App() {
         ventana_fin:     suggestedTime,
       },
     }))
+    // Quitar la sugerencia de la lista — ya fue atendida, no tiene sentido seguir mostrándola
+    setResult(prev => prev ? {
+      ...prev,
+      call_suggestions: (prev.call_suggestions || []).filter(s => s.ot_id !== otId),
+    } : prev)
   }, [])
 
   const handleDeleteOrder = useCallback(id => {
