@@ -387,11 +387,6 @@ export default function App() {
         .filter(Boolean)
 
       setStopCoords(stops)
-      // Sobrescribir original_estimated_km con el valor real geocodificado
-      // para que "km ahorrados" sea estable entre recálculos
-      if (naiveKmReal != null && aiResult.savings_breakdown) {
-        aiResult.savings_breakdown.original_estimated_km = naiveKmReal
-      }
       setResult(aiResult)
       setOrders(mergedOrders)
       setPendingEdits({})
@@ -408,16 +403,11 @@ export default function App() {
               googleLeg: routeData.legs[i] ?? null,
             }))
             setStopCoords(enriched)
-            // Actualizar totales con datos reales de Google y fijar baseline real
+            // Actualizar totales del resultado con datos reales
             setResult(prev => ({
               ...prev,
-              total_km:        routeData.totalKm,
+              total_km:       routeData.totalKm,
               total_mins_real: routeData.totalMins,
-              savings_breakdown: prev?.savings_breakdown ? {
-                ...prev.savings_breakdown,
-                optimised_km: routeData.totalKm,
-                // Mantener original_estimated_km del geocodificado real (ya sobreescrito arriba)
-              } : prev?.savings_breakdown,
             }))
           }
         } catch (gErr) {
