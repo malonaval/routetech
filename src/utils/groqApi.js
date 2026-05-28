@@ -1,13 +1,17 @@
 const MODEL = 'llama-3.3-70b-versatile'
 
-export async function callGroqAPI(apiKey, origin, orders) {
+export async function callGroqAPI(apiKey, origin, orders, distancesKm = {}) {
   const ordersText = orders
-    .map(
-      (o, i) =>
+    .map((o, i) => {
+      const dist = distancesKm[o.id]
+      const distStr = dist != null ? ` | Dist_origen:${Math.round(dist)}km` : ''
+      return (
         `${i + 1}. ID:${o.id} | Cliente:${o.cliente} | Dir:${o.direccion} | ` +
         `Dur:${o.duracion}min | Ventana:${o.ventana_tipo}` +
-        (o.ventana_inicio ? ` (${o.ventana_inicio}–${o.ventana_fin})` : '')
-    )
+        (o.ventana_inicio ? ` (${o.ventana_inicio}–${o.ventana_fin})` : '') +
+        distStr
+      )
+    })
     .join('\n')
 
   const prompt = `Ordena estas órdenes de trabajo minimizando tiempo total de desplazamiento, respetando ventanas fijas.
@@ -19,10 +23,12 @@ ${ordersText}
 
 REGLAS:
 - Ventanas "fija": cumplir en la franja exacta
-- Ventanas "flexible": reordenar libremente
+- Ventanas "flexible": reordenar libremente para minimizar km totales
+- CRÍTICO: Cada parada tiene "Dist_origen" en km (distancia real desde el INICIO). Usa estos valores para ordenar: paradas con Dist_origen pequeño deben visitarse lo antes posible. Si una parada flexible tiene Dist_origen < 10km, visítala ANTES de desplazarte a paradas lejanas, siempre que no incumplas una ventana fija.
 - Tiempos de desplazamiento en Madrid: 8-25 min en coche, 5-10 min a pie si <700m
-- Calcula hora de llegada acumulada para cada parada
+- Calcula hora de llegada acumulada para cada parada desde las 09:00 en el INICIO
 - saving_minutes = ahorro vs orden original
+- El recorrido debe ser geográficamente eficiente: nunca volver sobre tus pasos innecesariamente
 
 Devuelve ÚNICAMENTE este JSON (sin texto adicional):
 {
@@ -72,7 +78,7 @@ Devuelve ÚNICAMENTE este JSON (sin texto adicional):
       messages: [
         {
           role: 'system',
-          content: 'Eres un optimizador de rutas para técnicos de campo en Madrid. El campo "reasoning" debe ser específico: nombra qué clientes tienen ventana fija y por qué condicionan el orden, qué clientes flexibles se agruparon por zona geográfica, y cuánto tiempo se ahorra frente al orden original. Usa los nombres reales de los clientes y sus calles. El campo "call_suggestions" lista SOLO clientes con ventana_tipo "fija", ordenados por potential_saving_minutes descendente. Para cada uno: (1) calcula cuántos minutos se ganarían si cambian su cita, (2) propone en "suggested_time" la hora concreta a la que debería citarse para encajar mejor en la ruta (ej: "11:30"), (3) explica en "reason" de forma concreta por qué esa hora es mejor — menciona los clientes vecinos con los que se agruparía y el ahorro de distancia. El campo "savings_breakdown" usa estimaciones realistas de Madrid. Responde ÚNICAMENTE con JSON válido, sin texto ni markdown adicional.',
+          content: 'Eres un optimizador de rutas para técnicos de campo en Madrid. El campo "reasoning" debe ser específico: nombra qué clientes tienen ventana fija y por qué condicionan el orden, qué clientes flexibles se agruparon por zona geográfica, y cuánto tiempo se ahorra frente al orden original. Usa los nombres reales de los clientes y sus calles. El campo "call_suggestions" lista SOLO clientes con ventana_tipo "fija", ordenados por potential_saving_minutes descendente. IMPORTANTE: cada cliente puede aparecer como máximo UNA vez en call_suggestions — no repitas el mismo ot_id. Para cada uno: (1) calcula cuántos minutos se ganarían si cambian su cita, (2) propone en "suggested_time" la hora concreta a la que debería citarse para encajar mejor en la ruta (ej: "11:30"), (3) explica en "reason" de forma concreta por qué esa hora es mejor — menciona los clientes vecinos con los que se agruparía y el ahorro de distancia. El campo "savings_breakdown" usa estimaciones realistas de Madrid. Responde ÚNICAMENTE con JSON válido, sin texto ni markdown adicional.',
         },
         { role: 'user', content: prompt },
       ],

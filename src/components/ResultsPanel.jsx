@@ -1,13 +1,21 @@
-import { Map, Cpu, Phone, ChevronRight, Clock, AlertTriangle, PhoneCall } from 'lucide-react'
+import { Map, Cpu, Phone, ChevronRight, Clock, AlertTriangle, PhoneCall, ArrowUpDown } from 'lucide-react'
+import { useState } from 'react'
 import { WORKER_COLORS } from './WorkerPanel'
 
-export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, stopCoords = [], workersData = [] }) {
+export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, onProposeTime, stopCoords = [], workersData = [], originalOrders = [] }) {
+  const [reorderOpen, setReorderOpen] = useState(false)
+
   if (!result) return null
 
   const isMultiWorker = Array.isArray(result.workers) && result.workers.length > 0
 
   const legById   = Object.fromEntries(stopCoords.filter(s => s.googleLeg).map(s => [s.order.id, s.googleLeg]))
   const phoneById = Object.fromEntries(stopCoords.filter(s => s.order?.telefono).map(s => [s.order.id, s.order.telefono]))
+
+  // Deduplicar sugerencias por ot_id (el modelo a veces repite el mismo cliente)
+  const callSuggestions = result.call_suggestions
+    ? result.call_suggestions.filter((s, i, arr) => arr.findIndex(x => x.ot_id === s.ot_id) === i)
+    : []
 
   const sb = result.savings_breakdown
   const savedKm   = sb ? Math.round((sb.original_estimated_km - sb.optimised_km) * 10) / 10 : null
@@ -80,14 +88,72 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
         </div>
       )}
 
+      {/* ── Reordering comparison (single-worker only) ── */}
+      {!isMultiWorker && originalOrders.length > 0 && result.sequence?.length > 0 && (
+        <div className="reorder-section">
+          <div className="reorder-header" onClick={() => setReorderOpen(v => !v)}>
+            <ArrowUpDown size={11} strokeWidth={1.8} />
+            Reordenación de paradas
+            <span style={{ marginLeft: 'auto', fontSize: '9px', letterSpacing: '0.8px' }}>
+              {reorderOpen ? 'OCULTAR' : 'VER'}
+            </span>
+          </div>
+          {reorderOpen && (
+            <table className="reorder-table">
+              <thead>
+                <tr>
+                  <th className="reorder-th reorder-th--pos">#</th>
+                  <th className="reorder-th">Antes (CSV)</th>
+                  <th className="reorder-th reorder-th--pos">#</th>
+                  <th className="reorder-th">Después (IA)</th>
+                  <th className="reorder-th reorder-th--delta">Δ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.sequence.map((s, i) => {
+                  const origIdx = originalOrders.findIndex(o => o.id === s.ot_id)
+                  const origPos = origIdx + 1
+                  const newPos  = s.position ?? i + 1
+                  const delta   = origPos - newPos
+                  const origOrder = originalOrders[origIdx]
+                  const csvClientAtPos = originalOrders[i] // client that was at this position in CSV
+                  return (
+                    <tr key={s.ot_id} className="reorder-tr">
+                      <td className="reorder-td reorder-pos">{i + 1}</td>
+                      <td className="reorder-td reorder-name">
+                        {csvClientAtPos
+                          ? <span title={csvClientAtPos.direccion}>{csvClientAtPos.cliente}</span>
+                          : '—'}
+                      </td>
+                      <td className="reorder-td reorder-pos">{newPos}</td>
+                      <td className="reorder-td reorder-name">
+                        <span title={origOrder?.direccion ?? ''}>{s.cliente}</span>
+                      </td>
+                      <td className="reorder-td reorder-delta">
+                        {delta > 0
+                          ? <span className="reorder-delta--up">↑{delta}</span>
+                          : delta < 0
+                          ? <span className="reorder-delta--down">↓{Math.abs(delta)}</span>
+                          : <span className="reorder-delta--same">—</span>
+                        }
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
       {/* ── Call recommendations ── */}
-      {result.call_suggestions?.length > 0 && (
+      {callSuggestions.length > 0 && (
         <div className="call-section">
           <div className="call-title">
             <Phone size={11} strokeWidth={1.5} />
             Llamadas recomendadas
           </div>
-          {result.call_suggestions.map(s => {
+          {callSuggestions.map(s => {
             const leg = legById[s.ot_id]
             const trafficDelay = leg?.hasRealTraffic ? leg.durationMins - leg.durationNoTrafficMins : 0
             const phone = phoneById[s.ot_id]
@@ -102,10 +168,14 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
                   <div className="call-window">
                     Ahora: {s.current_window}
                     {s.suggested_time && (
-                      <span className="call-suggested">
+                      <button
+                        className="call-suggested call-suggested-btn"
+                        title="Aplicar esta hora y recalcular"
+                        onClick={e => { e.stopPropagation(); onProposeTime?.(s.ot_id, s.suggested_time) }}
+                      >
                         <Clock size={9} strokeWidth={2} />
                         Proponer: {s.suggested_time}
-                      </span>
+                      </button>
                     )}
                   </div>
                   {trafficDelay > 3 && (

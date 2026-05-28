@@ -1,4 +1,4 @@
-import { Check, Navigation, Map, Cpu, X, Pencil, Trash2 } from 'lucide-react'
+import { Check, Navigation, Map, Cpu, X, Pencil, Trash2, Clock } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 // stopCoords: [{ order, stop, coords, googleLeg }] — puede ser null si aún no se han geocodificado
@@ -40,7 +40,10 @@ export default function OrderList({ orders, result, stopCoords = [], highlighted
                 <span className={`tag ${isFixed ? 'tag-fixed' : 'tag-flex'}`}>
                   {isFixed ? 'FIJA' : 'FLEXIBLE'}
                 </span>
-                <span className="tag tag-plain">{order.duracion} min</span>
+                <span className="tag tag-plain" title="Duración de la visita">
+                  <Clock size={9} strokeWidth={1.5} style={{ marginRight: 2 }} />
+                  {order.duracion} min
+                </span>
                 {googleLeg ? (
                   <>
                     <span

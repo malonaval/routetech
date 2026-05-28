@@ -61,7 +61,9 @@ export default function RouteMap({
   originCoords,
   stopCoords,
   routePolyline,       // [[lat,lng],...] de Google — null si no hay
-  workersData = [],       // NEW
+  naivePolyline,       // [[lat,lng],...] orden CSV original para comparativa
+  originalOrders = [], // órdenes en orden CSV original
+  workersData = [],
   loading,
   loadingLogs,
   error,
@@ -71,6 +73,7 @@ export default function RouteMap({
   consumption,
   fuelPrice,
   onFocusStop,
+  onProposeTime,
 }) {
   const bounds = useMemo(() => {
     const pts = []
@@ -179,6 +182,14 @@ export default function RouteMap({
                 </Marker>
               )
             })}
+
+            {/* ── Polilínea de orden CSV original (comparativa) ── */}
+            {naivePolyline && naivePolyline.length > 1 && result && (
+              <Polyline
+                positions={naivePolyline}
+                pathOptions={{ color: '#b0aaa8', weight: 2, opacity: 0.7, dashArray: '6, 5' }}
+              />
+            )}
 
             {/* ── Ruta real de Google (carreteras reales) ── */}
             {routePolyline && routePolyline.length > 1 && (
@@ -298,8 +309,22 @@ export default function RouteMap({
       {/* Error */}
       {error && <div className="error-toast">{error}</div>}
 
+      {/* Leyenda de rutas (solo cuando hay comparativa) */}
+      {naivePolyline && naivePolyline.length > 1 && result && workersData.length === 0 && (
+        <div className="map-legend">
+          <div className="map-legend-row">
+            <span className="map-legend-line map-legend-line--solid" />
+            Ruta optimizada
+          </div>
+          <div className="map-legend-row">
+            <span className="map-legend-line map-legend-line--dashed" />
+            Orden CSV original
+          </div>
+        </div>
+      )}
+
       {/* Razonamiento IA */}
-      <ResultsPanel result={result} hasRealRoute={!!routePolyline} consumption={consumption} fuelPrice={fuelPrice} onFocusStop={onFocusStop} stopCoords={stopCoords} workersData={workersData} />
+      <ResultsPanel result={result} hasRealRoute={!!routePolyline} consumption={consumption} fuelPrice={fuelPrice} onFocusStop={onFocusStop} onProposeTime={onProposeTime} stopCoords={stopCoords} workersData={workersData} originalOrders={originalOrders} />
     </div>
   )
 }

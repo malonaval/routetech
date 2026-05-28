@@ -1,4 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from './utils/supabaseClient'
 import { Key, AlertTriangle, Map, Circle, LocateFixed, Fuel } from 'lucide-react'
 import CsvUpload, { DEMO_ORDERS_CENTRO } from './components/CsvUpload'
 import DemoTour from './components/DemoTour'
@@ -33,6 +35,8 @@ export default function App() {
   const [originCoords,  setOriginCoords]  = useState(null)
   const [stopCoords,    setStopCoords]    = useState([])
   const [routePolyline, setRoutePolyline] = useState(null) // [[lat,lng],...] de Google
+  const [naivePolyline, setNaivePolyline] = useState(null) // [[lat,lng],...] orden CSV original
+  const [originalOrders, setOriginalOrders] = useState([]) // órdenes en orden CSV, para comparativa
   const [highlightedId, setHighlightedId] = useState(null)
   const [pendingEdits, setPendingEdits] = useState({}) // { [orderId]: { ventana_tipo, ventana_inicio, ventana_fin } }
 
@@ -47,15 +51,23 @@ export default function App() {
   const [googleExpanded, setGoogleExpanded] = useState(() => !(localStorage.getItem('rt_googlekey') || import.meta.env.VITE_GOOGLE_KEY || ''))
   const [fuelExpanded,   setFuelExpanded]   = useState(false)
 
+  const persistSettings = async (patch) => {
+    try { await supabase.functions.invoke('save-settings', { body: patch }) } catch { /* silencioso */ }
+  }
+
   const saveKey = (storageKey, value, setter) => {
     setter(value)
     localStorage.setItem(storageKey, value)
+    const field = storageKey === 'rt_groqkey' ? 'groq_api_key' : 'google_maps_key'
+    persistSettings({ [field]: value })
   }
 
   const saveNum = (storageKey, value, setter) => {
     const n = parseFloat(value) || 0
     setter(n)
     localStorage.setItem(storageKey, n)
+    const field = storageKey === 'rt_consumption' ? 'consumption' : 'fuel_price'
+    persistSettings({ [field]: n })
   }
 
   const handleOrders = useCallback(newOrders => {
@@ -64,6 +76,8 @@ export default function App() {
     setStopCoords([])
     setOriginCoords(null)
     setRoutePolyline(null)
+    setNaivePolyline(null)
+    setOriginalOrders([])
     setError(null)
     setPendingEdits({})
     setWorkers([])
@@ -86,6 +100,19 @@ export default function App() {
 
   const handleClearEdits = useCallback(() => {
     setPendingEdits({})
+  }, [])
+
+  // Aplica el tiempo sugerido de una llamada recomendada como edición pendiente
+  const handleProposeTime = useCallback((otId, suggestedTime) => {
+    setPendingEdits(prev => ({
+      ...prev,
+      [otId]: {
+        ...(prev[otId] || {}),
+        ventana_tipo:    'fija',
+        ventana_inicio:  suggestedTime,
+        ventana_fin:     suggestedTime,
+      },
+    }))
   }, [])
 
   const handleDeleteOrder = useCallback(id => {
@@ -165,6 +192,56 @@ export default function App() {
   const handleDemoPrev  = useCallback(() => setDemoStep(s => Math.max(0, s - 1)), [])
   const handleDemoClose = useCallback(() => setDemoStep(null), [])
 
+  // Cargar settings del usuario desde Supabase al iniciar
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-settings')
+        if (error || !data) return
+        if (data.groq_api_key)        { setGroqKey(data.groq_api_key);        localStorage.setItem('rt_groqkey',    data.groq_api_key);    setGroqExpanded(false) }
+        if (data.google_maps_key)     { setGoogleKey(data.google_maps_key);   localStorage.setItem('rt_googlekey',  data.google_maps_key); setGoogleExpanded(false) }
+        if (data.consumption != null) { setConsumption(data.consumption);     localStorage.setItem('rt_consumption', data.consumption) }
+        if (data.fuel_price  != null) { setFuelPrice(data.fuel_price);        localStorage.setItem('rt_fuel_price',  data.fuel_price) }
+      } catch { /* silencioso — la app funciona con localStorage */ }
+    }
+    loadSettings()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-guardar ruta en Supabase tras cada optimización (no durante demo)
+  useEffect(() => {
+    if (!result || demoStep !== null) return
+    if (!stopCoords.length) return
+
+    const payload = {
+      origin,
+      total_km:       result.total_km ?? result.savings_breakdown?.optimised_km ?? 0,
+      saving_minutes: result.saving_minutes ?? 0,
+      end_time:       result.end_time ?? '',
+      worker_count:   workers.length || 1,
+      stops: stopCoords.map(({ stop, order }) => ({
+        position:       stop.position,
+        client_name:    order.cliente    ?? '',
+        client_address: order.direccion  ?? '',
+        client_phone:   order.telefono   ?? '',
+        duration_min:   order.duracion   ?? 0,
+        window_type:    order.ventana_tipo   ?? 'flexible',
+        window_start:   order.ventana_inicio ?? '',
+        window_end:     order.ventana_fin    ?? '',
+        arrival_time:   stop.arrival_time    ?? '',
+        travel_minutes: stop.travel_minutes  ?? 0,
+      })),
+    }
+
+    supabase.functions.invoke('save-route', { body: payload }).catch(() => {})
+  }, [result]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    navigate('/login')
+  }
+
   const handleWorkerOriginChange = useCallback((workerId, value) => {
     setWorkers(prev => prev.map(w => w.id === workerId ? { ...w, origin: value } : w))
   }, [])
@@ -186,6 +263,16 @@ export default function App() {
     return geocode(address)
   }
 
+  // Distancia en km entre dos coordenadas (fórmula haversine)
+  const haversineKm = (a, b) => {
+    const R = 6371
+    const dLat = (b.lat - a.lat) * Math.PI / 180
+    const dLng = (b.lng - a.lng) * Math.PI / 180
+    const h = Math.sin(dLat / 2) ** 2 +
+      Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+    return R * 2 * Math.asin(Math.sqrt(h))
+  }
+
   const handleOptimize = async () => {
     if (!origin.trim() || !orders.length || !groqKey) return
 
@@ -195,6 +282,8 @@ export default function App() {
     setStopCoords([])
     setOriginCoords(null)
     setRoutePolyline(null)
+    setNaivePolyline(null)
+    setOriginalOrders([])
     setLoadingLogs([])
 
     let logIdx = 0
@@ -205,30 +294,54 @@ export default function App() {
     }, 800)
 
     try {
-      // 1 · IA optimiza la secuencia
       const mergedOrders = orders.map(o =>
         pendingEdits[o.id] ? { ...o, ...pendingEdits[o.id] } : o
       )
-      const aiResult = await callGroqAPI(groqKey, origin.trim(), mergedOrders)
 
-      // 2 · Geocodificar origen
+      // 1 · Geocodificar origen y todas las paradas ANTES de llamar a Groq
+      //     así podemos calcular distancias reales y pasárselas al modelo
       const oCoords = await resolveCoords(origin.trim())
       setOriginCoords(oCoords)
 
-      // 3 · Geocodificar todas las paradas en secuencia optimizada
-      const stops = []
-      for (const stop of aiResult.sequence) {
-        const order = orders.find(o => o.id === stop.ot_id)
-        if (order) {
-          const coords = await resolveCoords(order.direccion)
-          stops.push({ stop, order, coords, googleLeg: null })
-          if (!googleKey) await sleep(250) // Nominatim rate-limit solo si no usamos Google
+      const coordsMap = {}
+      for (const order of mergedOrders) {
+        const c = await resolveCoords(order.direccion)
+        coordsMap[order.id] = c
+        if (!googleKey) await sleep(250) // Nominatim rate-limit
+      }
+
+      // 2 · Guardar polilínea de orden CSV original (para la comparativa visual)
+      const naivePts = [
+        ...(oCoords ? [[oCoords.lat, oCoords.lng]] : []),
+        ...mergedOrders.map(o => coordsMap[o.id]).filter(Boolean).map(c => [c.lat, c.lng]),
+      ]
+      setNaivePolyline(naivePts.length > 1 ? naivePts : null)
+      setOriginalOrders([...mergedOrders])
+
+      // 3 · Distancias reales desde el origen a cada parada
+      const distancesKm = {}
+      if (oCoords) {
+        for (const order of mergedOrders) {
+          const c = coordsMap[order.id]
+          if (c) distancesKm[order.id] = haversineKm(oCoords, c)
         }
       }
 
+      // 3 · IA optimiza la secuencia con distancias reales
+      const aiResult = await callGroqAPI(groqKey, origin.trim(), mergedOrders, distancesKm)
+
+      // 4 · Construir stopCoords usando las coords ya geocodificadas
+      const stops = aiResult.sequence
+        .map(stop => {
+          const order = mergedOrders.find(o => o.id === stop.ot_id)
+          if (!order) return null
+          return { stop, order, coords: coordsMap[order.id] ?? null, googleLeg: null }
+        })
+        .filter(Boolean)
+
       setStopCoords(stops)
       setResult(aiResult)
-      setOrders(mergedOrders)   // aplicar edits permanentemente
+      setOrders(mergedOrders)
       setPendingEdits({})
 
       // 4 · Ruta real con tráfico (solo si hay key de Google)
@@ -461,6 +574,16 @@ export default function App() {
         <div className="header-badge">Optimización de rutas · IA + Tráfico real</div>
         <button className="btn-demo-start" onClick={handleDemoStart}>
           ▶ Demo
+        </button>
+        <button className="btn-history" onClick={() => navigate('/historial')} title="Ver historial de rutas">
+          Historial
+        </button>
+        <button
+          className="btn-logout"
+          onClick={handleLogout}
+          title="Cerrar sesión"
+        >
+          Salir
         </button>
 
         {result && (
@@ -748,6 +871,8 @@ export default function App() {
           originCoords={isMultiWorker || demoWorkersData.length > 0 ? null : originCoords}
           stopCoords={isMultiWorker || demoWorkersData.length > 0 ? [] : stopCoords}
           routePolyline={isMultiWorker || demoWorkersData.length > 0 ? null : routePolyline}
+          naivePolyline={isMultiWorker || demoWorkersData.length > 0 ? null : naivePolyline}
+          originalOrders={isMultiWorker || demoWorkersData.length > 0 ? [] : originalOrders}
           workersData={demoWorkersData.length > 0
             ? demoWorkersData
             : isMultiWorker
@@ -770,6 +895,7 @@ export default function App() {
           consumption={consumption}
           fuelPrice={fuelPrice}
           onFocusStop={handleFocusStop}
+          onProposeTime={handleProposeTime}
         />
       </div>
       {demoStep !== null && (
