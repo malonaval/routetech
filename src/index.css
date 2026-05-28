@@ -859,6 +859,103 @@ header {
   opacity: 1;
 }
 
+/* ── Reordering comparison table ── */
+.reorder-section {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.reorder-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 6px;
+}
+.reorder-header:hover { color: var(--text); }
+.reorder-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+.reorder-th {
+  color: var(--muted);
+  padding: 2px 4px 3px;
+  text-align: left;
+  font-weight: 500;
+  font-size: 9px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.reorder-th--pos { width: 18px; text-align: center; }
+.reorder-th--delta { width: 24px; text-align: center; }
+.reorder-tr:last-child .reorder-td { border-bottom: none; }
+.reorder-td {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reorder-pos {
+  text-align: center;
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 9px;
+}
+.reorder-name { color: var(--text); }
+.reorder-delta { text-align: center; font-weight: 700; font-size: 10px; }
+.reorder-delta--up   { color: #059669; }
+.reorder-delta--down { color: #c0392b; }
+.reorder-delta--same { color: var(--muted); font-weight: 400; }
+
+/* ── Map legend (naive vs optimised route) ── */
+.map-legend {
+  position: absolute;
+  bottom: 28px;
+  left: 10px;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 10px;
+  z-index: 800;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+.map-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.map-legend-row:last-child { margin-bottom: 0; }
+.map-legend-line {
+  display: inline-block;
+  width: 22px;
+  height: 2px;
+  flex-shrink: 0;
+}
+.map-legend-line--solid { background: #18181b; }
+.map-legend-line--dashed {
+  background: repeating-linear-gradient(
+    to right,
+    #b0aaa8 0,
+    #b0aaa8 5px,
+    transparent 5px,
+    transparent 9px
+  );
+}
+
 .call-traffic {
   display: flex;
   align-items: center;

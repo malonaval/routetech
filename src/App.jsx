@@ -35,6 +35,8 @@ export default function App() {
   const [originCoords,  setOriginCoords]  = useState(null)
   const [stopCoords,    setStopCoords]    = useState([])
   const [routePolyline, setRoutePolyline] = useState(null) // [[lat,lng],...] de Google
+  const [naivePolyline, setNaivePolyline] = useState(null) // [[lat,lng],...] orden CSV original
+  const [originalOrders, setOriginalOrders] = useState([]) // órdenes en orden CSV, para comparativa
   const [highlightedId, setHighlightedId] = useState(null)
   const [pendingEdits, setPendingEdits] = useState({}) // { [orderId]: { ventana_tipo, ventana_inicio, ventana_fin } }
 
@@ -74,6 +76,8 @@ export default function App() {
     setStopCoords([])
     setOriginCoords(null)
     setRoutePolyline(null)
+    setNaivePolyline(null)
+    setOriginalOrders([])
     setError(null)
     setPendingEdits({})
     setWorkers([])
@@ -278,6 +282,8 @@ export default function App() {
     setStopCoords([])
     setOriginCoords(null)
     setRoutePolyline(null)
+    setNaivePolyline(null)
+    setOriginalOrders([])
     setLoadingLogs([])
 
     let logIdx = 0
@@ -304,7 +310,15 @@ export default function App() {
         if (!googleKey) await sleep(250) // Nominatim rate-limit
       }
 
-      // 2 · Distancias reales desde el origen a cada parada
+      // 2 · Guardar polilínea de orden CSV original (para la comparativa visual)
+      const naivePts = [
+        ...(oCoords ? [[oCoords.lat, oCoords.lng]] : []),
+        ...mergedOrders.map(o => coordsMap[o.id]).filter(Boolean).map(c => [c.lat, c.lng]),
+      ]
+      setNaivePolyline(naivePts.length > 1 ? naivePts : null)
+      setOriginalOrders([...mergedOrders])
+
+      // 3 · Distancias reales desde el origen a cada parada
       const distancesKm = {}
       if (oCoords) {
         for (const order of mergedOrders) {
@@ -857,6 +871,8 @@ export default function App() {
           originCoords={isMultiWorker || demoWorkersData.length > 0 ? null : originCoords}
           stopCoords={isMultiWorker || demoWorkersData.length > 0 ? [] : stopCoords}
           routePolyline={isMultiWorker || demoWorkersData.length > 0 ? null : routePolyline}
+          naivePolyline={isMultiWorker || demoWorkersData.length > 0 ? null : naivePolyline}
+          originalOrders={isMultiWorker || demoWorkersData.length > 0 ? [] : originalOrders}
           workersData={demoWorkersData.length > 0
             ? demoWorkersData
             : isMultiWorker

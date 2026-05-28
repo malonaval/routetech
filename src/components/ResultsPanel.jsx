@@ -1,7 +1,10 @@
-import { Map, Cpu, Phone, ChevronRight, Clock, AlertTriangle, PhoneCall } from 'lucide-react'
+import { Map, Cpu, Phone, ChevronRight, Clock, AlertTriangle, PhoneCall, ArrowUpDown } from 'lucide-react'
+import { useState } from 'react'
 import { WORKER_COLORS } from './WorkerPanel'
 
-export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, onProposeTime, stopCoords = [], workersData = [] }) {
+export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fuelPrice = 1.65, onFocusStop, onProposeTime, stopCoords = [], workersData = [], originalOrders = [] }) {
+  const [reorderOpen, setReorderOpen] = useState(false)
+
   if (!result) return null
 
   const isMultiWorker = Array.isArray(result.workers) && result.workers.length > 0
@@ -77,6 +80,64 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
       {(hasRealRoute || workersData.some(w => w.routePolyline)) && (
         <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.5px' }}>
           Tiempos calculados con tráfico en tiempo real
+        </div>
+      )}
+
+      {/* ── Reordering comparison (single-worker only) ── */}
+      {!isMultiWorker && originalOrders.length > 0 && result.sequence?.length > 0 && (
+        <div className="reorder-section">
+          <div className="reorder-header" onClick={() => setReorderOpen(v => !v)}>
+            <ArrowUpDown size={11} strokeWidth={1.8} />
+            Reordenación de paradas
+            <span style={{ marginLeft: 'auto', fontSize: '9px', letterSpacing: '0.8px' }}>
+              {reorderOpen ? 'OCULTAR' : 'VER'}
+            </span>
+          </div>
+          {reorderOpen && (
+            <table className="reorder-table">
+              <thead>
+                <tr>
+                  <th className="reorder-th reorder-th--pos">#</th>
+                  <th className="reorder-th">Antes (CSV)</th>
+                  <th className="reorder-th reorder-th--pos">#</th>
+                  <th className="reorder-th">Después (IA)</th>
+                  <th className="reorder-th reorder-th--delta">Δ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.sequence.map((s, i) => {
+                  const origIdx = originalOrders.findIndex(o => o.id === s.ot_id)
+                  const origPos = origIdx + 1
+                  const newPos  = s.position ?? i + 1
+                  const delta   = origPos - newPos
+                  const origOrder = originalOrders[origIdx]
+                  const csvClientAtPos = originalOrders[i] // client that was at this position in CSV
+                  return (
+                    <tr key={s.ot_id} className="reorder-tr">
+                      <td className="reorder-td reorder-pos">{i + 1}</td>
+                      <td className="reorder-td reorder-name">
+                        {csvClientAtPos
+                          ? <span title={csvClientAtPos.direccion}>{csvClientAtPos.cliente}</span>
+                          : '—'}
+                      </td>
+                      <td className="reorder-td reorder-pos">{newPos}</td>
+                      <td className="reorder-td reorder-name">
+                        <span title={origOrder?.direccion ?? ''}>{s.cliente}</span>
+                      </td>
+                      <td className="reorder-td reorder-delta">
+                        {delta > 0
+                          ? <span className="reorder-delta--up">↑{delta}</span>
+                          : delta < 0
+                          ? <span className="reorder-delta--down">↓{Math.abs(delta)}</span>
+                          : <span className="reorder-delta--same">—</span>
+                        }
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
