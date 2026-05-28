@@ -299,6 +299,10 @@ export default function App() {
     }, 800)
 
     try {
+      // Guardar qué órdenes fueron editadas manualmente por el usuario
+      // para no volver a sugerirlas en call_suggestions tras el recálculo
+      const userEditedIds = new Set(Object.keys(pendingEdits))
+
       const mergedOrders = orders.map(o =>
         pendingEdits[o.id] ? { ...o, ...pendingEdits[o.id] } : o
       )
@@ -332,8 +336,16 @@ export default function App() {
         }
       }
 
-      // 3 · IA optimiza la secuencia con distancias reales
+      // 4 · IA optimiza la secuencia con distancias reales
       const aiResult = await callGroqAPI(groqKey, origin.trim(), mergedOrders, distancesKm)
+
+      // Filtrar sugerencias de órdenes que el usuario ya editó manualmente —
+      // el usuario tomó la decisión, no tiene sentido volver a proponerles cambio
+      if (userEditedIds.size > 0 && aiResult.call_suggestions) {
+        aiResult.call_suggestions = aiResult.call_suggestions.filter(
+          s => !userEditedIds.has(s.ot_id)
+        )
+      }
 
       // 4 · Construir stopCoords usando las coords ya geocodificadas
       const stops = aiResult.sequence
