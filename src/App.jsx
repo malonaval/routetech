@@ -8,7 +8,7 @@ import OrderList from './components/OrderList'
 import RouteMap from './components/RouteMap'
 import { callGroqAPI, callGroqAPIMultiWorker } from './utils/groqApi'
 import { geocode, sleep } from './utils/geocode'
-import { geocodeGoogle, getGoogleRoute } from './utils/googleRoutes'
+import { geocodeGoogle, getGoogleRoute, getNaiveGoogleRoute } from './utils/googleRoutes'
 import WorkerPanel, { WORKER_COLORS } from './components/WorkerPanel'
 import { DEMO_ORIGIN, DEMO_ORIGIN_COORDS, DEMO_STOP_COORDS, DEMO_RESULT, DEMO_MULTI_RESULT, DEMO_ROUTE_POLYLINE, DEMO_WORKERS_MAP_DATA } from './utils/demoData'
 
@@ -348,14 +348,33 @@ export default function App() {
         if (!googleKey) await sleep(250) // Nominatim rate-limit
       }
 
-      // 2 · Guardar polilínea de orden CSV original (para la comparativa visual)
-      const naivePts = [
-        ...(oCoords ? [[oCoords.lat, oCoords.lng]] : []),
-        ...mergedOrders.map(o => coordsMap[o.id]).filter(Boolean).map(c => [c.lat, c.lng]),
-      ]
-      const naiveKmReal = naivePts.length > 1 ? polylineKm(naivePts) : null
-      setNaivePolyline(naivePts.length > 1 ? naivePts : null)
+      // 2 · Ruta CSV original para comparativa (carretera real si hay Google key, línea recta si no)
+      const naiveOrderedCoords = mergedOrders.map(o => coordsMap[o.id]).filter(Boolean)
       setOriginalOrders([...mergedOrders])
+
+      if (googleKey && oCoords && naiveOrderedCoords.length) {
+        // Llamada en paralelo con Groq — no bloquea la optimización
+        getNaiveGoogleRoute(googleKey, oCoords, naiveOrderedCoords).then(naiveRoute => {
+          if (naiveRoute) {
+            setNaivePolyline(naiveRoute.polylinePoints)
+            // Sobreescribir el km original con el dato real de carretera para comparativa estable
+            setResult(prev => prev && prev.savings_breakdown ? {
+              ...prev,
+              savings_breakdown: {
+                ...prev.savings_breakdown,
+                original_estimated_km: naiveRoute.totalKm,
+              },
+            } : prev)
+          }
+        }).catch(() => {/* fallo silencioso — se muestra línea recta */})
+      } else {
+        // Sin Google key: línea recta como fallback visual
+        const naivePts = [
+          ...(oCoords ? [[oCoords.lat, oCoords.lng]] : []),
+          ...naiveOrderedCoords.map(c => [c.lat, c.lng]),
+        ]
+        setNaivePolyline(naivePts.length > 1 ? naivePts : null)
+      }
 
       // 3 · Distancias reales desde el origen a cada parada
       const distancesKm = {}

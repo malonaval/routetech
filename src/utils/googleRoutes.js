@@ -60,6 +60,39 @@ async function fetchLeg(apiKey, fromCoords, toCoords) {
   }
 }
 
+// Calcula la ruta CSV original (una sola llamada, sin tráfico) para comparar km reales de carretera
+// orderedCoords: [{lat, lng},...] en orden CSV ya geocodificados
+export async function getNaiveGoogleRoute(apiKey, originCoords, orderedCoords) {
+  const valid = orderedCoords.filter(Boolean)
+  if (!valid.length || !originCoords) return null
+
+  const allPts = [originCoords, ...valid]
+  const origin      = `${allPts[0].lat},${allPts[0].lng}`
+  const destination = `${allPts[allPts.length - 1].lat},${allPts[allPts.length - 1].lng}`
+  const middle      = allPts.slice(1, -1).map(c => `${c.lat},${c.lng}`).join('|')
+
+  const params = new URLSearchParams({
+    origin,
+    destination,
+    key:      apiKey,
+    language: 'es',
+    region:   'es',
+    mode:     'driving',
+  })
+  if (middle) params.set('waypoints', middle)
+
+  const res  = await fetch(`/api/gmaps/maps/api/directions/json?${params}`)
+  const data = await res.json()
+  if (data.status !== 'OK') return null
+
+  const route  = data.routes[0]
+  const totalKm = (route.legs.reduce((s, l) => s + l.distance.value, 0) / 1000).toFixed(1)
+  return {
+    polylinePoints: decodePolyline(route.overview_polyline.points),
+    totalKm: parseFloat(totalKm),
+  }
+}
+
 // Calcula la ruta real con tráfico: una llamada por tramo para garantizar duration_in_traffic
 // orderedStops: [{ coords: {lat, lng}, order, stop }, ...]
 export async function getGoogleRoute(apiKey, originCoords, orderedStops) {
