@@ -106,13 +106,31 @@ export default function App() {
 
   // Aplica el tiempo sugerido de una llamada recomendada como edición pendiente
   const handleProposeTime = useCallback((otId, suggestedTime) => {
+    // Calcular ventana_fin manteniendo la duración original de la ventana
+    // (mínimo 60 min) para no crear una restricción imposiblemente estrecha
+    const order = orders.find(o => o.id === otId)
+    let ventana_fin = suggestedTime
+    if (order?.ventana_inicio && order?.ventana_fin && order.ventana_inicio !== order.ventana_fin) {
+      const [sh, sm] = order.ventana_inicio.split(':').map(Number)
+      const [eh, em] = order.ventana_fin.split(':').map(Number)
+      const durationMins = Math.max((eh * 60 + em) - (sh * 60 + sm), 60)
+      const [nh, nm] = suggestedTime.split(':').map(Number)
+      const endMins = nh * 60 + nm + durationMins
+      ventana_fin = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`
+    } else {
+      // Sin ventana original → usar 1 hora
+      const [nh, nm] = suggestedTime.split(':').map(Number)
+      const endMins = nh * 60 + nm + 60
+      ventana_fin = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`
+    }
+
     setPendingEdits(prev => ({
       ...prev,
       [otId]: {
         ...(prev[otId] || {}),
         ventana_tipo:    'fija',
         ventana_inicio:  suggestedTime,
-        ventana_fin:     suggestedTime,
+        ventana_fin,
       },
     }))
     // Marcar como descartada — no volver a sugerir aunque se recalcule
@@ -122,7 +140,7 @@ export default function App() {
       ...prev,
       call_suggestions: (prev.call_suggestions || []).filter(s => s.ot_id !== otId),
     } : prev)
-  }, [])
+  }, [orders])
 
   const handleDeleteOrder = useCallback(id => {
     if (workers.length > 0) {
@@ -272,6 +290,17 @@ export default function App() {
     return geocode(address)
   }
 
+  // Suma de segmentos de una polilínea [[lat,lng],...] en km
+  const polylineKm = (pts) => {
+    let total = 0
+    for (let i = 1; i < pts.length; i++) {
+      const a = { lat: pts[i - 1][0], lng: pts[i - 1][1] }
+      const b = { lat: pts[i][0],     lng: pts[i][1] }
+      total += haversineKm(a, b)
+    }
+    return Math.round(total * 10) / 10
+  }
+
   // Distancia en km entre dos coordenadas (fórmula haversine)
   const haversineKm = (a, b) => {
     const R = 6371
@@ -324,6 +353,7 @@ export default function App() {
         ...(oCoords ? [[oCoords.lat, oCoords.lng]] : []),
         ...mergedOrders.map(o => coordsMap[o.id]).filter(Boolean).map(c => [c.lat, c.lng]),
       ]
+      const naiveKmReal = naivePts.length > 1 ? polylineKm(naivePts) : null
       setNaivePolyline(naivePts.length > 1 ? naivePts : null)
       setOriginalOrders([...mergedOrders])
 
@@ -357,6 +387,11 @@ export default function App() {
         .filter(Boolean)
 
       setStopCoords(stops)
+      // Sobrescribir original_estimated_km con el valor real geocodificado
+      // para que "km ahorrados" sea estable entre recálculos
+      if (naiveKmReal != null && aiResult.savings_breakdown) {
+        aiResult.savings_breakdown.original_estimated_km = naiveKmReal
+      }
       setResult(aiResult)
       setOrders(mergedOrders)
       setPendingEdits({})
@@ -373,11 +408,16 @@ export default function App() {
               googleLeg: routeData.legs[i] ?? null,
             }))
             setStopCoords(enriched)
-            // Actualizar totales del resultado con datos reales
+            // Actualizar totales con datos reales de Google y fijar baseline real
             setResult(prev => ({
               ...prev,
-              total_km:       routeData.totalKm,
+              total_km:        routeData.totalKm,
               total_mins_real: routeData.totalMins,
+              savings_breakdown: prev?.savings_breakdown ? {
+                ...prev.savings_breakdown,
+                optimised_km: routeData.totalKm,
+                // Mantener original_estimated_km del geocodificado real (ya sobreescrito arriba)
+              } : prev?.savings_breakdown,
             }))
           }
         } catch (gErr) {
