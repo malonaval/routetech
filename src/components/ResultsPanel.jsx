@@ -12,6 +12,11 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
   const legById   = Object.fromEntries(stopCoords.filter(s => s.googleLeg).map(s => [s.order.id, s.googleLeg]))
   const phoneById = Object.fromEntries(stopCoords.filter(s => s.order?.telefono).map(s => [s.order.id, s.order.telefono]))
 
+  // Deduplicar sugerencias por ot_id (el modelo a veces repite el mismo cliente)
+  const callSuggestions = result.call_suggestions
+    ? result.call_suggestions.filter((s, i, arr) => arr.findIndex(x => x.ot_id === s.ot_id) === i)
+    : []
+
   const sb = result.savings_breakdown
   const savedKm   = sb ? Math.round((sb.original_estimated_km - sb.optimised_km) * 10) / 10 : null
   const savedMins = result.saving_minutes ?? result.global_saving_minutes ?? (sb ? sb.original_estimated_mins - sb.optimised_mins : null)
@@ -142,13 +147,13 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
       )}
 
       {/* ── Call recommendations ── */}
-      {result.call_suggestions?.length > 0 && (
+      {callSuggestions.length > 0 && (
         <div className="call-section">
           <div className="call-title">
             <Phone size={11} strokeWidth={1.5} />
             Llamadas recomendadas
           </div>
-          {result.call_suggestions.map(s => {
+          {callSuggestions.map(s => {
             const leg = legById[s.ot_id]
             const trafficDelay = leg?.hasRealTraffic ? leg.durationMins - leg.durationNoTrafficMins : 0
             const phone = phoneById[s.ot_id]
