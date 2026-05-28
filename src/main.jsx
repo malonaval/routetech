@@ -8,13 +8,53 @@ import App from './App.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import HistoryPage from './pages/HistoryPage.jsx'
 
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 horas
+
 function AppRouter() {
   const [session, setSession] = useState(undefined) // undefined = loading
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
-    return () => subscription.unsubscribe()
+    supabase.auth.getSession().then(({ data }) => {
+      const s = data.session
+      if (s) {
+        const loginTime = parseInt(localStorage.getItem('rt_login_time') || '0', 10)
+        if (loginTime && Date.now() - loginTime > SESSION_TTL_MS) {
+          // Han pasado más de 24h — cerrar sesión
+          supabase.auth.signOut()
+          localStorage.removeItem('rt_login_time')
+          setSession(null)
+          return
+        }
+      }
+      setSession(s)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'SIGNED_IN' && s) {
+        // Guardar timestamp del login
+        if (!localStorage.getItem('rt_login_time')) {
+          localStorage.setItem('rt_login_time', Date.now().toString())
+        }
+      }
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('rt_login_time')
+      }
+      setSession(s)
+    })
+
+    // Comprobar cada hora si han pasado 24h
+    const timer = setInterval(async () => {
+      const loginTime = parseInt(localStorage.getItem('rt_login_time') || '0', 10)
+      if (loginTime && Date.now() - loginTime > SESSION_TTL_MS) {
+        await supabase.auth.signOut()
+        localStorage.removeItem('rt_login_time')
+      }
+    }, 60 * 60 * 1000) // cada hora
+
+    return () => {
+      subscription.unsubscribe()
+      clearInterval(timer)
+    }
   }, [])
 
   if (session === undefined) return <div className="auth-loading">Cargando…</div>
