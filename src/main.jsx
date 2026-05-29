@@ -17,8 +17,13 @@ function AppRouter() {
     supabase.auth.getSession().then(({ data }) => {
       const s = data.session
       if (s) {
-        const loginTime = parseInt(localStorage.getItem('rt_login_time') || '0', 10)
-        if (loginTime && Date.now() - loginTime > SESSION_TTL_MS) {
+        const stored = localStorage.getItem('rt_login_time')
+        const loginTime = stored ? parseInt(stored, 10) : 0
+
+        if (!loginTime) {
+          // Sin timestamp guardado (login anterior al TTL feature) → arrancar el reloj ahora
+          localStorage.setItem('rt_login_time', Date.now().toString())
+        } else if (Date.now() - loginTime > SESSION_TTL_MS) {
           // Han pasado más de 24h — cerrar sesión
           supabase.auth.signOut()
           localStorage.removeItem('rt_login_time')
