@@ -259,7 +259,9 @@ export default function App() {
       })),
     }
 
-    supabase.functions.invoke('save-route', { body: payload }).catch(() => {})
+    supabase.functions.invoke('save-route', { body: payload })
+      .then(({ error }) => { if (error) console.warn('[save-route] error:', error) })
+      .catch(e => console.warn('[save-route] failed:', e))
   }, [result]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const navigate = useNavigate()
