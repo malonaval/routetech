@@ -260,7 +260,15 @@ export default function App() {
     }
 
     supabase.functions.invoke('save-route', { body: payload })
-      .then(({ error }) => { if (error) console.warn('[save-route] error:', error) })
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn('[save-route] error:', error)
+          setError('⚠ Historial: ' + (error.message || JSON.stringify(error)))
+          setTimeout(() => setError(null), 8000)
+        } else {
+          console.log('[save-route] ok:', data)
+        }
+      })
       .catch(e => console.warn('[save-route] failed:', e))
   }, [result]) // eslint-disable-line react-hooks/exhaustive-deps
 
