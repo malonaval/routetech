@@ -743,6 +743,44 @@ header {
   font-weight: 500;
 }
 
+/* Comparativa antes → después */
+.savings-row--compare {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.savings-compare {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.savings-compare-orig {
+  font-size: 11px;
+  color: #e07b39;
+  font-weight: 500;
+  text-decoration: line-through;
+  text-decoration-color: #e07b39;
+}
+.savings-compare-arrow {
+  font-size: 11px;
+  color: var(--muted);
+}
+.savings-compare-opt {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+}
+.savings-compare-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #059669;
+  background: #d1fae5;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 2px;
+}
+
 .savings-val--fuel {
   color: #16a34a;
 }

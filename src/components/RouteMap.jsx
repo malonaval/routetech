@@ -187,7 +187,7 @@ export default function RouteMap({
             {naivePolyline && naivePolyline.length > 1 && result && (
               <Polyline
                 positions={naivePolyline}
-                pathOptions={{ color: '#b0aaa8', weight: 2, opacity: 0.7, dashArray: '6, 5' }}
+                pathOptions={{ color: '#e07b39', weight: 2.5, opacity: 0.75, dashArray: '7, 5' }}
               />
             )}
 
@@ -317,7 +317,7 @@ export default function RouteMap({
             Ruta optimizada
           </div>
           <div className="map-legend-row">
-            <span className="map-legend-line map-legend-line--dashed" />
+            <span className="map-legend-line map-legend-line--dashed" style={{ background: 'repeating-linear-gradient(to right, #e07b39 0, #e07b39 5px, transparent 5px, transparent 9px)' }} />
             Orden CSV original
           </div>
         </div>

@@ -18,9 +18,13 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
     : []
 
   const sb = result.savings_breakdown
-  const savedKm   = sb ? Math.round((sb.original_estimated_km - sb.optimised_km) * 10) / 10 : null
-  const savedMins = result.saving_minutes ?? result.global_saving_minutes ?? (sb ? sb.original_estimated_mins - sb.optimised_mins : null)
-  const fuelSaved = savedKm != null
+  const origKm    = sb?.original_estimated_km ?? null
+  const optKm     = sb?.optimised_km ?? result.total_km ?? null
+  const savedKm   = (origKm != null && optKm != null) ? Math.round((origKm - optKm) * 10) / 10 : null
+  const origMins  = sb?.original_estimated_mins ?? null
+  const optMins   = sb?.optimised_mins ?? null
+  const savedMins = result.saving_minutes ?? result.global_saving_minutes ?? (origMins != null && optMins != null ? origMins - optMins : null)
+  const fuelSaved = savedKm != null && savedKm > 0
     ? ((savedKm * consumption / 100) * fuelPrice).toFixed(2)
     : null
 
@@ -30,21 +34,39 @@ export default function ResultsPanel({ result, hasRealRoute, consumption = 9, fu
 
   return (
     <div className="reasoning-card">
-      {/* ── Savings summary ── */}
+      {/* ── Savings summary: comparativa antes → después ── */}
       {(savedMins != null || savedKm != null) && (
         <div className="savings-table">
-          {savedMins != null && (
+          {/* Kilómetros: antes → después */}
+          {origKm != null && optKm != null && (
+            <div className="savings-row savings-row--compare">
+              <span className="savings-label">Kilómetros</span>
+              <span className="savings-compare">
+                <span className="savings-compare-orig">{origKm} km</span>
+                <span className="savings-compare-arrow">→</span>
+                <span className="savings-compare-opt">{typeof optKm === 'number' ? optKm : parseFloat(optKm)} km</span>
+                {savedKm > 0 && <span className="savings-compare-badge">−{savedKm} km</span>}
+              </span>
+            </div>
+          )}
+          {/* Tiempo: antes → después */}
+          {origMins != null && optMins != null ? (
+            <div className="savings-row savings-row--compare">
+              <span className="savings-label">Tiempo</span>
+              <span className="savings-compare">
+                <span className="savings-compare-orig">{origMins} min</span>
+                <span className="savings-compare-arrow">→</span>
+                <span className="savings-compare-opt">{optMins} min</span>
+                {savedMins > 0 && <span className="savings-compare-badge">−{savedMins} min</span>}
+              </span>
+            </div>
+          ) : savedMins != null && (
             <div className="savings-row">
               <span className="savings-label">Tiempo ahorrado</span>
               <span className="savings-val">{savedMins} min</span>
             </div>
           )}
-          {savedKm != null && (
-            <div className="savings-row">
-              <span className="savings-label">Kilómetros menos</span>
-              <span className="savings-val">{savedKm} km</span>
-            </div>
-          )}
+          {/* Combustible */}
           {fuelSaved != null && (
             <div className="savings-row savings-row--fuel">
               <span className="savings-label">Ahorro combustible</span>
