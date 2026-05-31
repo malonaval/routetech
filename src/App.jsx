@@ -53,14 +53,22 @@ export default function App() {
   const [fuelExpanded,   setFuelExpanded]   = useState(false)
 
   const persistSettings = async (patch) => {
-    try { await supabase.functions.invoke('save-settings', { body: patch }) } catch { /* silencioso */ }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase.from('user_settings').upsert({
+        user_id: user.id,
+        updated_at: new Date().toISOString(),
+        ...patch,
+      })
+    } catch { /* silencioso */ }
   }
 
   const saveKey = (storageKey, value, setter) => {
     setter(value)
     localStorage.setItem(storageKey, value)
     const field = storageKey === 'rt_groqkey' ? 'groq_api_key' : 'google_maps_key'
-    persistSettings({ [field]: value })
+    persistSettings({ [field]: value || null })
   }
 
   const saveNum = (storageKey, value, setter) => {
@@ -223,7 +231,13 @@ export default function App() {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const { data, error } = await supabase.functions.invoke('get-settings')
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('groq_api_key, google_maps_key, consumption, fuel_price')
+          .eq('user_id', user.id)
+          .maybeSingle()
         if (error || !data) return
         if (data.groq_api_key)        { setGroqKey(data.groq_api_key);        localStorage.setItem('rt_groqkey',    data.groq_api_key);    setGroqExpanded(false) }
         if (data.google_maps_key)     { setGoogleKey(data.google_maps_key);   localStorage.setItem('rt_googlekey',  data.google_maps_key); setGoogleExpanded(false) }
@@ -259,17 +273,28 @@ export default function App() {
       })),
     }
 
-    supabase.functions.invoke('save-route', { body: payload })
-      .then(({ data, error }) => {
-        if (error) {
-          console.warn('[save-route] error:', error)
-          setError('⚠ Historial: ' + (error.message || JSON.stringify(error)))
-          setTimeout(() => setError(null), 8000)
-        } else {
-          console.log('[save-route] ok:', data)
-        }
-      })
-      .catch(e => console.warn('[save-route] failed:', e))
+    ;(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data: route, error: rErr } = await supabase
+          .from('routes')
+          .insert({
+            user_id:        user.id,
+            origin:         payload.origin,
+            total_km:       payload.total_km,
+            saving_minutes: payload.saving_minutes,
+            end_time:       payload.end_time,
+            worker_count:   payload.worker_count ?? 1,
+          })
+          .select('id')
+          .single()
+        if (rErr) { console.warn('[save-route]', rErr.message); return }
+        const stops = payload.stops.map(s => ({ route_id: route.id, ...s }))
+        const { error: sErr } = await supabase.from('route_stops').insert(stops)
+        if (sErr) console.warn('[save-route stops]', sErr.message)
+      } catch (e) { console.warn('[save-route]', e) }
+    })()
   }, [result]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const navigate = useNavigate()

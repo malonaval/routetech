@@ -10,10 +10,18 @@ export default function HistoryPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    supabase.functions.invoke('get-routes').then(({ data, error }) => {
-      if (!error && data) setRoutes(data)
-      setLoading(false)
-    })
+    supabase
+      .from('routes')
+      .select(`id, created_at, origin, total_km, saving_minutes, end_time, worker_count,
+               route_stops(position, client_name, client_address, client_phone,
+                           duration_min, window_type, window_start, window_end,
+                           arrival_time, travel_minutes)`)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data, error }) => {
+        if (!error && data) setRoutes(data)
+        setLoading(false)
+      })
   }, [])
 
   const handleLogout = async () => {
